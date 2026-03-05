@@ -1,0 +1,70 @@
+/* Import Inter font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Button transitions */
+button {
+    transition: all 0.2s ease-in-out;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+/* Custom Webkit Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1; 
+}
+ 
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1; 
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8; 
+}
+
+/* Custom file input */
+input[type="file"]::file-selector-button {
+    margin-right: 1rem;
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: none;
+    border-radius: 0.25rem;
+    padding: 0.5rem 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .2s;
+}
+
+input[type="file"]::file-selector-button:hover {
+    background-color: #dbeafe;
+}
+
+textarea.input-form {
+    resize: none !important;
+    min-height: 100px;
+}
+
+.input-form {
+    transition: all 0.2s;
+    background-color: #ffffff;
+    font-size: 0.875rem; /* text-sm */
+    color: #1f2937;      /* text-gray-800 */
+}
+
+.input-form:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    outline: none;
+}

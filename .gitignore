@@ -1,0 +1,5 @@
+control_versiones/
+.DS_Store
+node_modules/
+backend/node_modules/
+backend/uploads/
