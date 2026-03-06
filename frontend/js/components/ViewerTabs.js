@@ -226,7 +226,7 @@ function renderFiles(items, rootFolder, pendientesFiles = []) {
     const canManage = state.user.role !== 'tecnico';
 
     // Pre-calculate gallery items for Lightbox
-    let mediaItems = [];
+    window.currentTabsMediaItems = []; // Expose globally for download lookup
     items.forEach((item, index) => {
         const isImg = item.name.match(/\.(jpg|jpeg|png|webp)$/i);
         const isPdf = item.name.endsWith('.pdf');
@@ -236,8 +236,8 @@ function renderFiles(items, rootFolder, pendientesFiles = []) {
             let displayName = comentario || item.name;
             if (!comentario) displayName = displayName.replace(/\.[^/.]+$/, ""); // Hide extension if no comment
 
-            item._mediaIndex = mediaItems.length;
-            mediaItems.push({
+            item._mediaIndex = window.currentTabsMediaItems.length;
+            window.currentTabsMediaItems.push({
                 url,
                 type: isImg ? 'image' : 'pdf',
                 title: displayName,
@@ -297,7 +297,7 @@ function renderFiles(items, rootFolder, pendientesFiles = []) {
             if (isDir) {
                 navegar(item.path);
             } else if (isImg || isPdf) {
-                openLightboxGallery(mediaItems, item._mediaIndex);
+                openLightboxGallery(window.currentTabsMediaItems, item._mediaIndex);
             } else {
                 window.open(url, '_blank');
             }
@@ -693,23 +693,18 @@ window.descargarEvidenciasSeleccionadas = async () => {
         let root = window.currentRootFolder;
         const url = `${API_URL.replace('/api', '')}/uploads/${window.currentRootFolder}/${currentBrowserPath ? currentBrowserPath + '/' : ''}${itemName}`;
 
-        // Intentar recuperar el comentario del DOM o usar el original
+        // Intentar recuperar el comentario del array global
         let downloadName = itemName;
-        const encodedDataStr = document.getElementById(`evidencia-card-${itemName.replace(/[^a-zA-Z0-9]/g, '_')}`)?.querySelector('img')?.parentElement?.getAttribute('onclick');
-        if (encodedDataStr) {
-            try {
-                const match = encodedDataStr.match(/'(\[%7B.*?%7D\])'/);
-                if (match && match[1]) {
-                    const mediaItems = JSON.parse(decodeURIComponent(match[1]));
-                    const targetItem = mediaItems.find(i => i.fileRef === itemName);
-                    if (targetItem && targetItem.comentario) {
-                        const ext = itemName.substring(itemName.lastIndexOf('.'));
-                        let baseName = targetItem.comentario.replace(/[^a-zA-Z0-9 _\-\.]/g, '').trim();
-                        if (baseName) downloadName = `${baseName}${ext}`;
-                    }
+        try {
+            if (window.currentTabsMediaItems) {
+                const targetItem = window.currentTabsMediaItems.find(i => i.fileRef === itemName);
+                if (targetItem && targetItem.comentario) {
+                    const ext = itemName.substring(itemName.lastIndexOf('.'));
+                    let baseName = targetItem.comentario.replace(/[^a-zA-Z0-9 _\-\.]/g, '').trim();
+                    if (baseName) downloadName = `${baseName}${ext}`;
                 }
-            } catch (e) { console.error("Error extrañendo comentario para descarga:", e); }
-        }
+            }
+        } catch (e) { console.error("Error extrayendo comentario para descarga:", e); }
 
         try {
             const btn = document.getElementById('btn-download-evidencias');

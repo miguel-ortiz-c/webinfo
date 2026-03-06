@@ -297,6 +297,8 @@ async function cargarDatosLogistica() {
             const folderName = tipo === 'salida' ? 'Guias_Salida' : 'Guias_Entrada';
             let html = '';
 
+            window.currentLogisticaMediaItems = window.currentLogisticaMediaItems || {};
+
             // Extract gallery items logic
             let mediaItems = serverFiles.map((fObj) => {
                 const file = typeof fObj === 'string' ? fObj : fObj.nombre;
@@ -316,6 +318,7 @@ async function cargarDatosLogistica() {
                     tipoLogistica: tipo
                 };
             });
+            window.currentLogisticaMediaItems[tipo] = mediaItems;
 
             // 1. DIBUJAR FOTOS QUE YA ESTÁN EN EL SERVIDOR
             html += mediaItems.map((item, index) => {
@@ -767,23 +770,19 @@ window.descargarEvidenciasLogisticaSeleccionadas = async (tipo) => {
         const folderName = tipo === 'salida' ? 'Guias_Salida' : 'Guias_Entrada';
         const urlObj = new URL(`${API_URL.replace('/api', '')}/uploads/${currentRootFolder}/Logistica/${folderName}/${archivo}`.replace(/([^:]\/)\/+/g, "$1"));
 
-        // Recuperar el comentario guardado en el DOM o usar el nombre original
+        // Recuperar el comentario de la cache de memoria
         let downloadName = archivo;
-        const encodedDataStr = document.getElementById(`card-logistica-${tipo}-${archivo.replace(/[^a-zA-Z0-9]/g, '_')}`)?.querySelector('img')?.getAttribute('onclick');
-        if (encodedDataStr) {
-            try {
-                const match = encodedDataStr.match(/'(\[%7B.*?%7D\])'/);
-                if (match && match[1]) {
-                    const mediaItems = JSON.parse(decodeURIComponent(match[1]));
-                    const targetItem = mediaItems.find(i => i.fileRef === archivo);
-                    if (targetItem && targetItem.comentario) {
-                        const ext = archivo.substring(archivo.lastIndexOf('.'));
-                        let baseName = targetItem.comentario.replace(/[^a-zA-Z0-9 _\-\.]/g, '').trim();
-                        if (baseName) downloadName = `${baseName}${ext}`;
-                    }
+        try {
+            const arr = window.currentLogisticaMediaItems && window.currentLogisticaMediaItems[tipo];
+            if (arr) {
+                const targetItem = arr.find(i => i.fileRef === archivo);
+                if (targetItem && targetItem.comentario) {
+                    const ext = archivo.substring(archivo.lastIndexOf('.'));
+                    let baseName = targetItem.comentario.replace(/[^a-zA-Z0-9 _\-\.]/g, '').trim();
+                    if (baseName) downloadName = `${baseName}${ext}`;
                 }
-            } catch (e) { console.error("Error extrapolating comment for download:", e); }
-        }
+            }
+        } catch (e) { console.error("Error extrapolating comment for download:", e); }
 
         try {
             const btn = document.getElementById(`btn-download-logistica-${tipo}`);
