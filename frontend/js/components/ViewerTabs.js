@@ -647,23 +647,42 @@ window.compartirEvidenciasSeleccionadas = async () => {
             const subPath = window.currentBrowserPath;
             const url = `${API_URL.replace('/api', '')}/uploads/${root}/${subPath}/${itemName}`.replace(/([^:]\/)\/+/g, "$1");
 
+            let shareName = itemName;
+            let commentText = '';
+            try {
+                if (window.currentTabsMediaItems) {
+                    const targetItem = window.currentTabsMediaItems.find(i => i.fileRef === itemName);
+                    if (targetItem && targetItem.comentario) {
+                        const ext = itemName.substring(itemName.lastIndexOf('.'));
+                        let baseName = targetItem.comentario.replace(/[^a-zA-Z0-9 _\-\.]/g, '').trim();
+                        if (baseName) shareName = `${baseName}${ext}`;
+                        commentText = targetItem.comentario;
+                    }
+                }
+            } catch (e) { console.error("Error extrayendo comentario para compartir:", e); }
+
             const res = await fetch(url);
             const blob = await res.blob();
-            filesToShare.push(new File([blob], itemName, { type: blob.type }));
+            filesToShare.push(new File([blob], shareName, { type: blob.type }));
 
-            const cardId = `evidencia-card-${itemName.replace(/[^a-zA-Z0-9]/g, '_')}`;
-            const card = document.getElementById(cardId);
-            if (card) {
-                const commentDiv = card.querySelector('.truncate');
-                if (commentDiv && commentDiv.innerText && commentDiv.innerText.trim() !== '') {
-                    allComments.push(commentDiv.innerText.trim());
+            if (commentText) {
+                allComments.push(commentText);
+            } else {
+                // Falla a extraer del DOM como antes (legacy)
+                const cardId = `evidencia-card-${itemName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                const card = document.getElementById(cardId);
+                if (card) {
+                    const commentDiv = card.querySelector('.truncate');
+                    if (commentDiv && commentDiv.innerText && commentDiv.innerText.trim() !== '') {
+                        allComments.push(commentDiv.innerText.trim());
+                    }
                 }
             }
         }
 
         const shareData = {
             title: `Evidencias - ${window.currentBrowserPath || 'Descargas'}`,
-            text: allComments.join(' | '),
+            text: allComments.length === 1 ? allComments[0] : '', // Avoid clustered WhatsApp strings
             files: filesToShare
         };
 

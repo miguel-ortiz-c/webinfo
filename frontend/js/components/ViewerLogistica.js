@@ -722,25 +722,45 @@ window.compartirEvidenciasLogisticaSeleccionadas = async (tipo) => {
 
         for (const archivo of seleccionadas) {
             const urlObj = new URL(`${API_URL.replace('/api', '')}/uploads/${currentRootFolder}/Logistica/${folderName}/${archivo}`.replace(/([^:]\/)\/+/g, "$1"));
+
+            let shareName = archivo;
+            let commentText = '';
+            try {
+                const arr = window.currentLogisticaMediaItems && window.currentLogisticaMediaItems[tipo];
+                if (arr) {
+                    const targetItem = arr.find(i => i.fileRef === archivo);
+                    if (targetItem && targetItem.comentario) {
+                        const ext = archivo.substring(archivo.lastIndexOf('.'));
+                        let baseName = targetItem.comentario.replace(/[^a-zA-Z0-9 _\-\.]/g, '').trim();
+                        if (baseName) shareName = `${baseName}${ext}`;
+                        commentText = targetItem.comentario;
+                    }
+                }
+            } catch (e) { console.error("Error extrapolating comment for share:", e); }
+
             const res = await fetch(urlObj.href);
             const blob = await res.blob();
-            filesToShare.push(new File([blob], archivo, { type: blob.type }));
+            filesToShare.push(new File([blob], shareName, { type: blob.type }));
 
-            // Try to find comment from DOM
-            const safeFileId = archivo.replace(/[^a-zA-Z0-9]/g, '_');
-            const cardId = `card-logistica-${tipo}-${safeFileId}`;
-            const card = document.getElementById(cardId);
-            if (card) {
-                const commentDiv = card.querySelector('.truncate');
-                if (commentDiv && commentDiv.innerText && commentDiv.innerText.trim() !== '') {
-                    allComments.push(commentDiv.innerText.trim());
+            if (commentText) {
+                allComments.push(commentText);
+            } else {
+                // Legacy try to find comment from DOM
+                const safeFileId = archivo.replace(/[^a-zA-Z0-9]/g, '_');
+                const cardId = `card-logistica-${tipo}-${safeFileId}`;
+                const card = document.getElementById(cardId);
+                if (card) {
+                    const commentDiv = card.querySelector('.truncate');
+                    if (commentDiv && commentDiv.innerText && commentDiv.innerText.trim() !== '') {
+                        allComments.push(commentDiv.innerText.trim());
+                    }
                 }
             }
         }
 
         const shareData = {
             title: `Logística - ${tipo === 'salida' ? 'Salida' : 'Entrada'}`,
-            text: allComments.join(' | '),
+            text: allComments.length === 1 ? allComments[0] : '', // Avoid clustered WhatsApp strings
             files: filesToShare
         };
 
