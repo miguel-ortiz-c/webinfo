@@ -28,26 +28,26 @@
             <p class="text-sm text-gray-500 font-medium">Gestión de Informes v8.5</p>
         </div>
 
-        <form id="loginForm" class="space-y-4">
+        <div id="loginForm" class="space-y-4" onkeypress="if(event.key === 'Enter') document.getElementById('btnLogin').click()">
             <div>
                 <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Usuario</label>
-                <input type="text" id="username"
+                <input type="text" id="username" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                     class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
-                    placeholder="admin" required>
+                    placeholder="admin">
             </div>
 
             <div>
                 <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Contraseña</label>
-                <input type="password" id="password"
+                <input type="password" id="password" autocomplete="new-password"
                     class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
-                    placeholder="••••••••" required>
+                    placeholder="••••••••">
             </div>
 
-            <button type="submit"
+            <button type="button" id="btnLogin"
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition transform active:scale-95">
                 INGRESAR
             </button>
-        </form>
+        </div>
 
         <p id="errorMsg"
             class="hidden mt-4 text-center text-sm font-bold text-red-600 bg-red-50 p-2 rounded border border-red-200">
@@ -69,20 +69,24 @@
         }
 
         // Login Logic
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
+        document.getElementById('btnLogin').addEventListener('click', async (e) => {
             const userField = document.getElementById('username');
             const passField = document.getElementById('password');
-            const btn = e.target.querySelector('button');
+            const btn = e.target;
             const msg = document.getElementById('errorMsg');
 
             const username = userField.value.trim();
             const password = passField.value;
 
+            if (!username || !password) {
+                msg.innerText = 'Por favor, ingrese usuario y contraseña.';
+                msg.classList.remove('hidden');
+                return;
+            }
+
             msg.classList.add('hidden');
             btn.disabled = true;
-            btn.innerText = "Verificando...";
+            btn.innerHTML = "Verificando...";
 
             try {
                 const url = window.location.origin + '/api/auth/login';
