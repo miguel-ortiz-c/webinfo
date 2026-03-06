@@ -77,6 +77,10 @@ export function initGlobalEvents() {
 
     // 2. Mobile Back Gesture
     window.addEventListener('popstate', (e) => {
+        if (window.ignoreNextPopstate) {
+            window.ignoreNextPopstate = false;
+            return;
+        }
 
         // Priority 1: Lightbox
         const lightbox = document.getElementById('previewModal');
@@ -118,7 +122,7 @@ export function initGlobalEvents() {
 
         if (window.evidenciasSeleccionadas && window.evidenciasSeleccionadas.length > 0) {
             if (typeof window.clearSeleccionEvidencias === 'function') {
-                window.clearSeleccionEvidencias();
+                window.clearSeleccionEvidencias(true);
             } else {
                 window.evidenciasSeleccionadas = [];
             }
@@ -127,7 +131,7 @@ export function initGlobalEvents() {
 
         if (window.logisticaSeleccionadas && (window.logisticaSeleccionadas.salida.length > 0 || window.logisticaSeleccionadas.entrada.length > 0)) {
             if (typeof window.clearSeleccionLogistica === 'function') {
-                window.clearSeleccionLogistica();
+                window.clearSeleccionLogistica(true);
             } else {
                 window.logisticaSeleccionadas.salida = [];
                 window.logisticaSeleccionadas.entrada = [];

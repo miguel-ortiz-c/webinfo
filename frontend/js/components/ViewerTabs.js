@@ -537,11 +537,21 @@ window.borrarItem = async (itemName) => {
 };
 
 window.toggleSeleccionEvidencia = (itemName) => {
+    const wasEmpty = window.evidenciasSeleccionadas.length === 0;
     const isSelected = window.evidenciasSeleccionadas.includes(itemName);
+
     if (!isSelected) {
         window.evidenciasSeleccionadas.push(itemName);
+        if (wasEmpty) {
+            history.pushState({ seleccionEvidencias: true }, '', location.href);
+        }
     } else {
         window.evidenciasSeleccionadas = window.evidenciasSeleccionadas.filter(i => i !== itemName);
+        if (window.evidenciasSeleccionadas.length === 0 && !wasEmpty) {
+            // User manually deselected the last item. We need to consume the history state so it doesn't linger.
+            window.ignoreNextPopstate = true;
+            history.back();
+        }
     }
 
     const cardId = `evidencia-card-${itemName.replace(/[^a-zA-Z0-9]/g, '_')}`;
@@ -592,7 +602,8 @@ window.toggleSeleccionEvidencia = (itemName) => {
     }
 };
 
-window.clearSeleccionEvidencias = () => {
+window.clearSeleccionEvidencias = (fromPopstate = false) => {
+    const wasEmpty = window.evidenciasSeleccionadas.length === 0;
     window.evidenciasSeleccionadas = [];
     document.querySelectorAll('[id^="evidencia-card-"]').forEach(card => {
         card.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50');
@@ -605,6 +616,11 @@ window.clearSeleccionEvidencias = () => {
     if (btnDel) { btnDel.classList.add('hidden'); btnDel.classList.remove('flex'); }
     if (btnDown) { btnDown.classList.add('hidden'); btnDown.classList.remove('flex'); }
     if (btnShare) { btnShare.classList.add('hidden'); btnShare.classList.remove('flex'); }
+
+    if (!fromPopstate && !wasEmpty) {
+        window.ignoreNextPopstate = true;
+        history.back();
+    }
 };
 
 window.borrarEvidenciasSeleccionadas = async () => {

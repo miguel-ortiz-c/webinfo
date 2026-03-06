@@ -641,11 +641,21 @@ window.subirEvidenciaLogistica = async (tipo, input) => {
 };
 
 window.toggleSeleccionLogistica = (tipo, archivo) => {
+    const wasEmpty = window.logisticaSeleccionadas.salida.length === 0 && window.logisticaSeleccionadas.entrada.length === 0;
     const isSelected = window.logisticaSeleccionadas[tipo].includes(archivo);
+
     if (!isSelected) {
         window.logisticaSeleccionadas[tipo].push(archivo);
+        if (wasEmpty) {
+            history.pushState({ seleccionLogistica: true }, '', location.href);
+        }
     } else {
         window.logisticaSeleccionadas[tipo] = window.logisticaSeleccionadas[tipo].filter(f => f !== archivo);
+        const isEmptyNow = window.logisticaSeleccionadas.salida.length === 0 && window.logisticaSeleccionadas.entrada.length === 0;
+        if (isEmptyNow && !wasEmpty) {
+            window.ignoreNextPopstate = true;
+            history.back();
+        }
     }
 
     const safeFileId = archivo.replace(/[^a-zA-Z0-9]/g, '_');
@@ -691,7 +701,8 @@ function actualizarBotonEliminarLogistica(tipo) {
     }
 }
 
-window.clearSeleccionLogistica = () => {
+window.clearSeleccionLogistica = (fromPopstate = false) => {
+    const wasEmpty = window.logisticaSeleccionadas.salida.length === 0 && window.logisticaSeleccionadas.entrada.length === 0;
     window.logisticaSeleccionadas = { salida: [], entrada: [] };
     document.querySelectorAll('[id^="card-logistica-"]').forEach(card => {
         card.classList.replace('border-blue-500', 'border-gray-200');
@@ -701,6 +712,11 @@ window.clearSeleccionLogistica = () => {
 
     actualizarBotonEliminarLogistica('salida');
     actualizarBotonEliminarLogistica('entrada');
+
+    if (!fromPopstate && !wasEmpty) {
+        window.ignoreNextPopstate = true;
+        history.back();
+    }
 };
 
 window.compartirEvidenciasLogisticaSeleccionadas = async (tipo) => {
