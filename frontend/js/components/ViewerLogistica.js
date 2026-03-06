@@ -761,9 +761,6 @@ window.compartirEvidenciasLogisticaSeleccionadas = async (tipo) => {
         const shareData = {
             files: filesToShare
         };
-        if (allComments.length === 1 && allComments[0]) {
-            shareData.text = allComments[0];
-        }
 
         if (navigator.canShare(shareData)) {
             await navigator.share(shareData);
