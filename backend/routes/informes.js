@@ -644,10 +644,34 @@ router.post('/descargar-multiples/:id', (req, res) => {
 
         archive.pipe(res);
 
+        let metadata = {};
+        const metaPath = path.join(targetDir, 'metadata.json');
+        if (fs.existsSync(metaPath)) {
+            try { metadata = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch (e) { }
+        }
+
+        const usedNames = new Set();
+
         files.forEach(file => {
             const filePath = path.join(targetDir, file);
             if (fs.existsSync(filePath)) {
-                archive.file(filePath, { name: file });
+                let downloadName = file;
+                if (metadata[file] && metadata[file].comment) {
+                    const ext = path.extname(file);
+                    let baseName = metadata[file].comment.replace(/[^a-zA-Z0-9 _\-\.]/g, '').trim();
+                    if (!baseName) baseName = "Evidencia";
+
+                    downloadName = `${baseName}${ext}`;
+
+                    let counter = 1;
+                    while (usedNames.has(downloadName.toLowerCase())) {
+                        downloadName = `${baseName}_${counter}${ext}`;
+                        counter++;
+                    }
+                }
+
+                usedNames.add(downloadName.toLowerCase());
+                archive.file(filePath, { name: downloadName });
             }
         });
 

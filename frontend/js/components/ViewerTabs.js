@@ -691,12 +691,29 @@ window.descargarEvidenciasSeleccionadas = async () => {
     if (itemsToDownload.length === 1) {
         const itemName = itemsToDownload[0];
         let root = window.currentRootFolder;
-        let subPath = window.currentBrowserPath;
-        const urlObj = new URL(`${API_URL.replace('/api', '')}/uploads/${root}/${subPath}/${itemName}`.replace(/([^:]\/)\/+/g, "$1"));
+        const url = `${API_URL.replace('/api', '')}/uploads/${window.currentRootFolder}/${currentBrowserPath ? currentBrowserPath + '/' : ''}${itemName}`;
+
+        // Intentar recuperar el comentario del DOM o usar el original
+        let downloadName = itemName;
+        const encodedDataStr = document.getElementById(`evidencia-card-${itemName.replace(/[^a-zA-Z0-9]/g, '_')}`)?.querySelector('img')?.parentElement?.getAttribute('onclick');
+        if (encodedDataStr) {
+            try {
+                const match = encodedDataStr.match(/'(\[%7B.*?%7D\])'/);
+                if (match && match[1]) {
+                    const mediaItems = JSON.parse(decodeURIComponent(match[1]));
+                    const targetItem = mediaItems.find(i => i.fileRef === itemName);
+                    if (targetItem && targetItem.comentario) {
+                        const ext = itemName.substring(itemName.lastIndexOf('.'));
+                        let baseName = targetItem.comentario.replace(/[^a-zA-Z0-9 _\-\.]/g, '').trim();
+                        if (baseName) downloadName = `${baseName}${ext}`;
+                    }
+                }
+            } catch (e) { console.error("Error extrañendo comentario para descarga:", e); }
+        }
 
         const a = document.createElement('a');
-        a.href = urlObj.href;
-        a.download = itemName;
+        a.href = url.replace(/([^:]\/)\/+/g, "$1");
+        a.download = downloadName;
         a.target = '_blank';
         document.body.appendChild(a);
         a.click();

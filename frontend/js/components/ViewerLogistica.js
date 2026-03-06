@@ -767,9 +767,27 @@ window.descargarEvidenciasLogisticaSeleccionadas = async (tipo) => {
         const folderName = tipo === 'salida' ? 'Guias_Salida' : 'Guias_Entrada';
         const urlObj = new URL(`${API_URL.replace('/api', '')}/uploads/${currentRootFolder}/Logistica/${folderName}/${archivo}`.replace(/([^:]\/)\/+/g, "$1"));
 
+        // Recuperar el comentario guardado en el DOM o usar el nombre original
+        let downloadName = archivo;
+        const encodedDataStr = document.getElementById(`card-logistica-${tipo}-${archivo.replace(/[^a-zA-Z0-9]/g, '_')}`)?.querySelector('img')?.getAttribute('onclick');
+        if (encodedDataStr) {
+            try {
+                const match = encodedDataStr.match(/'(\[%7B.*?%7D\])'/);
+                if (match && match[1]) {
+                    const mediaItems = JSON.parse(decodeURIComponent(match[1]));
+                    const targetItem = mediaItems.find(i => i.fileRef === archivo);
+                    if (targetItem && targetItem.comentario) {
+                        const ext = archivo.substring(archivo.lastIndexOf('.'));
+                        let baseName = targetItem.comentario.replace(/[^a-zA-Z0-9 _\-\.]/g, '').trim();
+                        if (baseName) downloadName = `${baseName}${ext}`;
+                    }
+                }
+            } catch (e) { console.error("Error extrapolating comment for download:", e); }
+        }
+
         const a = document.createElement('a');
         a.href = urlObj.href;
-        a.download = archivo;
+        a.download = downloadName;
         a.target = '_blank';
         document.body.appendChild(a);
         a.click();
