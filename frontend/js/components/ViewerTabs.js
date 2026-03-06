@@ -110,6 +110,9 @@ export async function switchTab(tab) {
         currentBrowserPath = 'Evidencias';
     }
 
+    // Word/PDF live in the project root, not inside Evidencias
+    const explorePath = (tab === 'word' || tab === 'pdf') ? '' : currentBrowserPath;
+
     renderTabActions(tab);
 
     const container = document.getElementById('tab-content');
@@ -121,17 +124,17 @@ export async function switchTab(tab) {
         // LÓGICA INTELIGENTE: Si sabemos positivamente que no hay internet, vamos directo al motor offline
         if (!navigator.onLine) {
             console.log("Modo Offline detectado: Leyendo desde caché local...");
-            data = await getOfflineDirectory(activeReportId, currentBrowserPath);
+            data = await getOfflineDirectory(activeReportId, explorePath);
         } else {
             try {
                 // Intento Online
-                const res = await fetch(`${API_URL}/informes/explorar/${activeReportId}?filter=${tab}&path=${encodeURIComponent(currentBrowserPath)}`);
+                const res = await fetch(`${API_URL}/informes/explorar/${activeReportId}?filter=${tab}&path=${encodeURIComponent(explorePath)}`);
                 if (!res.ok) throw new Error("Fetch explorador falló");
                 data = await res.json();
             } catch (netErr) {
                 // Fallback: Si falla (por red inestable), usamos el motor offline
                 console.log("Fallo de red al explorar. Usando respaldo offline...");
-                data = await getOfflineDirectory(activeReportId, currentBrowserPath);
+                data = await getOfflineDirectory(activeReportId, explorePath);
             }
         }
 
@@ -868,6 +871,46 @@ window.crearCarpeta = async () => {
     } catch (e) { console.error(e); }
 };
 
+window.subirArchivoDirecto = async (input) => {
+    const file = input.files[0];
+    if (!file) return;
+    input.value = '';
+
+    try {
+        let rootFolder = '';
+        const infoRes = await fetch(`${API_URL}/informes/archivos/${activeReportId}`);
+        if (!infoRes.ok) throw new Error();
+        const infoData = await infoRes.json();
+        rootFolder = infoData.datos.ruta_carpeta;
+
+        const container = document.getElementById('tab-content');
+        if (container) container.innerHTML = '<div class="col-span-full text-center py-10 animate-pulse text-blue-600 font-bold">Subiendo archivo...</div>';
+
+        const fd = new FormData();
+        fd.append('projectFolder', rootFolder);
+        fd.append('subPath', '.');
+        fd.append('files', file, file.name);
+        fd.append('filePaths', JSON.stringify([file.name]));
+
+        const res = await fetch(`${API_URL}/informes/subir`, {
+            method: 'POST',
+            body: fd
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            switchTab(currentTab);
+        } else {
+            await window.sysAlert("Error al subir: " + (data.error || 'Desconocido'));
+            switchTab(currentTab);
+        }
+    } catch (e) {
+        console.error(e);
+        await window.sysAlert("Error de conexión al subir archivo.");
+        switchTab(currentTab);
+    }
+};
+
 function renderTabActions(tab) {
     const container = document.getElementById('tab-actions');
     if (!container) return;
@@ -915,6 +958,10 @@ function renderTabActions(tab) {
     }
     else if ((isAdmin || isCliente) && tab === 'word') {
         html = `
+            <label class="cursor-pointer flex items-center justify-center px-2 sm:px-3 py-1.5 bg-white border border-gray-300 rounded text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition flex-1 sm:flex-none">
+                <i data-feather="upload" width="14" class="sm:mr-1"></i> <span class="hidden sm:inline">Subir Word</span>
+                <input type="file" accept=".docx" class="hidden" onchange="window.subirArchivoDirecto(this)">
+            </label>
             <button onclick="handleGenerar('word')" class="flex items-center justify-center px-2 sm:px-3 py-1.5 bg-blue-600 border border-blue-600 rounded text-xs font-bold text-white hover:bg-blue-700 shadow-sm transition flex-1 sm:flex-none">
                 <i data-feather="cpu" width="14" class="sm:mr-1"></i> <span class="hidden sm:inline">Generar Word</span>
             </button>
@@ -928,6 +975,10 @@ function renderTabActions(tab) {
     }
     else if ((isAdmin || isCliente) && tab === 'pdf') {
         html = `
+            <label class="cursor-pointer flex items-center px-3 py-1.5 bg-white border border-gray-300 rounded text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition">
+                <i data-feather="upload" width="14" class="mr-1"></i> Subir PDF
+                <input type="file" accept=".pdf" class="hidden" onchange="window.subirArchivoDirecto(this)">
+            </label>
             <button onclick="handleConvertirPdf()" class="flex items-center px-3 py-1.5 bg-white border border-green-300 rounded text-xs font-bold text-green-700 hover:bg-green-50 shadow-sm transition">
                 <i data-feather="refresh-ccw" width="14" class="mr-1"></i> Re-convertir
             </button>

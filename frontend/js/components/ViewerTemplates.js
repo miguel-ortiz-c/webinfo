@@ -35,6 +35,11 @@ export function getModalHTML(info) {
         ? `<span class="text-red-600 bg-red-50 px-2 py-0.5 rounded text-sm sm:text-xl font-bold tracking-wide border border-red-200 whitespace-nowrap">(${info.codigo_cliente})</span>`
         : '';
 
+    const btnDescargar = `<button onclick="window.descargarUno(window.currentViewerId)" class="bg-indigo-600 hover:bg-indigo-700 text-white p-1.5 sm:p-2 px-2 sm:px-4 rounded-lg shadow font-bold text-sm flex items-center transition mr-2 hover:scale-105 transform" title="Descargar Proyecto">
+        <i data-feather="download" class="w-4 h-4 sm:w-4 sm:h-4 sm:mr-2"></i> 
+        <span class="hidden sm:inline">Descargar</span>
+    </button>`;
+
     // Botón responsivo: Solo lapicito en móvil, "Editar" completo en PC. Pegado a la X.
     const btnEditar = canEdit
         ? `<button onclick="window.abrirEditarProyecto()" class="bg-yellow-500 hover:bg-yellow-600 text-white p-1.5 sm:p-2 px-2 sm:px-4 rounded-lg shadow font-bold text-sm flex items-center transition mr-2 hover:scale-105 transform" title="Editar Proyecto">
@@ -69,6 +74,7 @@ export function getModalHTML(info) {
                 </div>
 
                 <div class="flex items-center absolute top-4 right-4 sm:relative sm:top-0 sm:right-0">
+                    ${btnDescargar}
                     ${btnEditar}
                     <button onclick="cerrarReporte()" class="bg-white/10 p-1.5 sm:p-2 rounded-full hover:bg-white/20 transition hover:rotate-90 hover:text-red-300">
                         <i data-feather="x" class="w-5 h-5 sm:w-6 sm:h-6"></i>
@@ -177,12 +183,6 @@ export function getModalHTML(info) {
                 </div> <!-- END TAB 3 -->
                 
                 </div> <!-- END TAB CONTENT CONTAINER -->
-            </div>
-            
-            <div class="bg-gray-100 p-4 border-t border-gray-200 text-center sm:text-right shrink-0">
-                <button onclick="descargarUno(currentViewerId)" class="w-full sm:w-auto bg-gray-800 hover:bg-gray-900 text-white px-6 py-3 rounded-xl font-bold text-sm shadow inline-flex justify-center items-center transition hover:-translate-y-0.5">
-                    <i data-feather="archive" class="mr-2" width="18"></i> DESCARGAR ZIP
-                </button>
             </div>
             
         </div>

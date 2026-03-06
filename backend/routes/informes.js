@@ -526,6 +526,53 @@ router.post('/mkdir/:id', (req, res) => {
     });
 });
 
+// Helper: append folder files (recursively) using metadata comments as zip names
+function appendFolderWithComments(archive, localPath, targetZipFolder) {
+    if (!fs.existsSync(localPath)) return;
+
+    // Read metadata for the current directory
+    let metadata = {};
+    const metaPath = path.join(localPath, 'metadata.json');
+    if (fs.existsSync(metaPath)) {
+        try { metadata = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch (e) { }
+    }
+
+    const entries = fs.readdirSync(localPath);
+    const usedNames = new Set();
+
+    entries.forEach(entry => {
+        if (entry === 'metadata.json' || entry.startsWith('.')) return;
+
+        const fullPath = path.join(localPath, entry);
+        let stats;
+        try { stats = fs.lstatSync(fullPath); } catch (e) { return; }
+
+        if (stats.isDirectory()) {
+            // Recurse into subdirectory, preserving folder name in zip path
+            appendFolderWithComments(archive, fullPath, `${targetZipFolder}/${entry}`);
+        } else if (stats.isFile()) {
+            let downloadName = entry;
+
+            if (metadata[entry] && metadata[entry].comment) {
+                const ext = path.extname(entry);
+                let baseName = metadata[entry].comment.replace(/[^a-zA-Z0-9 _\-\.áéíóúñÁÉÍÓÚÑ]/g, '').trim();
+                if (!baseName) baseName = 'Evidencia';
+
+                downloadName = `${baseName}${ext}`;
+
+                let counter = 1;
+                while (usedNames.has(downloadName.toLowerCase())) {
+                    downloadName = `${baseName}_${counter}${ext}`;
+                    counter++;
+                }
+            }
+
+            usedNames.add(downloadName.toLowerCase());
+            archive.file(fullPath, { name: `${targetZipFolder}/${downloadName}` });
+        }
+    });
+}
+
 router.get('/descargar-proyecto/:id', (req, res) => {
     const { id } = req.params;
 
@@ -570,7 +617,10 @@ router.get('/descargar-proyecto/:id', (req, res) => {
             const archive = archiver('zip', { zlib: { level: 9 } });
 
             // Forzar la descarga en el navegador con el nombre del proyecto
-            res.attachment(`Proyecto_${info.codigo_proyecto}.zip`);
+            const zipName = info.codigo_cliente
+                ? `${info.codigo_proyecto}_${info.codigo_cliente}.zip`
+                : `${info.codigo_proyecto}.zip`;
+            res.attachment(zipName);
             archive.pipe(res);
 
             // A) Agregar el Archivo Excel
@@ -578,23 +628,14 @@ router.get('/descargar-proyecto/:id', (req, res) => {
 
             const projectRoot = path.join(UPLOADS_ROOT, info.ruta_carpeta);
 
-            // B) Carpeta Evidencias
-            const evidenciasPath = path.join(projectRoot, 'Evidencias');
-            if (fs.existsSync(evidenciasPath)) {
-                archive.directory(evidenciasPath, 'Evidencias');
-            }
+            // B) Carpeta Evidencias (con renombrado por metadata)
+            appendFolderWithComments(archive, path.join(projectRoot, 'Evidencias'), 'Evidencias');
 
-            // C) Carpeta Guía de Salida
-            const guiasSalidaPath = path.join(projectRoot, 'Logistica', 'Guias_Salida');
-            if (fs.existsSync(guiasSalidaPath)) {
-                archive.directory(guiasSalidaPath, 'Guia_de_Salida');
-            }
+            // C) Carpeta Guía de Salida (con renombrado por metadata)
+            appendFolderWithComments(archive, path.join(projectRoot, 'Logistica', 'Guias_Salida'), 'Guia_de_salida');
 
-            // D) Carpeta Guía de Entrada / Retorno
-            const guiasEntradaPath = path.join(projectRoot, 'Logistica', 'Guias_Entrada');
-            if (fs.existsSync(guiasEntradaPath)) {
-                archive.directory(guiasEntradaPath, 'Guia_de_Entrada_Retorno');
-            }
+            // D) Carpeta Guía de Entrada / Retorno (con renombrado por metadata)
+            appendFolderWithComments(archive, path.join(projectRoot, 'Logistica', 'Guias_Entrada'), 'Guia_de_entrada_retorno');
 
             // E) Archivos Word y PDF (Los busca sueltos en la raíz de la carpeta)
             if (fs.existsSync(projectRoot)) {

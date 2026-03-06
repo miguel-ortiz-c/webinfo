@@ -26,11 +26,10 @@ Este documento contiene las reglas fundamentales, convenciones y el contexto arq
 7. **Modo Offline:** El proyecto tiene capacidades de PWA/Offline (`offline-sync.js`, Service Workers). Siempre que diseñes una función de guardado, asume que la red podría estar inestable. Si falla el `fetch`, implementa un "fallback" que permita al usuario reintentar o que guarde el estado temporalmente.
 
 ### 🐙 Git & Control de Versiones
-8. **Conventional Commits:** Todos los mensajes de commit deben estar en **inglés** y seguir el estándar:
-   - `feat:` (nuevas características)
-   - `fix:` (arreglos de bugs)
-   - `refactor:` (mejoras de código sin cambiar funcionalidad)
-   - `chore:` (mantenimiento, configuraciones)
+8. **Conventional Commits y Flujo de Trabajo (Workflows):**
+   - Todos los mensajes de commit deben estar en **inglés** sin excepción y seguir el estándar (ej. `feat:`, `fix:`, `refactor:`).
+   - **NUNCA** hagas push directamente a `main` al guardar progreso. El trabajo continuo entre máquinas (casa-oficina) se sincroniza usando la rama `desarrollo`. Solo pasamos a `main` cuando una funcionalidad está 100% terminada y probada.
+   - Existen **cuatro comandos (workflows)** en la carpeta `.agent/workflows/` que automatizan este flujo. Cuando el usuario use las palabras clave `/guardar`, `/cargar`, `/publicar` o `/comandos`, debes ejecutar la instrucción de esa carpeta.
 9. **Archivos Ignorados:** Nunca subas la carpeta `control_versiones/`, ni directorios `node_modules/`, ni las fotos reales de pruebas de la carpeta `backend/uploads/`.
 
 ## 3. Flujo de Trabajo con la IA
