@@ -759,10 +759,11 @@ window.compartirEvidenciasLogisticaSeleccionadas = async (tipo) => {
         }
 
         const shareData = {
-            title: `Logística - ${tipo === 'salida' ? 'Salida' : 'Entrada'}`,
-            text: allComments.length === 1 ? allComments[0] : '', // Avoid clustered WhatsApp strings
             files: filesToShare
         };
+        if (allComments.length === 1 && allComments[0]) {
+            shareData.text = allComments[0];
+        }
 
         if (navigator.canShare(shareData)) {
             await navigator.share(shareData);
