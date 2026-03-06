@@ -1,2 +1,0 @@
-¡Hola! Soy un archivo que fue creado en otra computadora (o en la nube).
-Cuando ejecutes el comando /cargar, yo apareceré en tu carpeta local.
