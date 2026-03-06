@@ -711,13 +711,36 @@ window.descargarEvidenciasSeleccionadas = async () => {
             } catch (e) { console.error("Error extrañendo comentario para descarga:", e); }
         }
 
-        const a = document.createElement('a');
-        a.href = url.replace(/([^:]\/)\/+/g, "$1");
-        a.download = downloadName;
-        a.target = '_blank';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        try {
+            const btn = document.getElementById('btn-download-evidencias');
+            if (btn) btn.innerHTML = `<i data-feather="loader" width="12" class="animate-spin text-white"></i>`;
+            if (window.feather) feather.replace();
+
+            const response = await fetch(url.replace(/([^:]\/)\/+/g, "$1"));
+            if (!response.ok) throw new Error("Network response was not ok");
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = downloadName;
+            document.body.appendChild(a);
+            a.click();
+
+            setTimeout(() => {
+                window.URL.revokeObjectURL(blobUrl);
+                document.body.removeChild(a);
+            }, 100);
+        } catch (error) {
+            console.error("Error downloading file as blob: ", error);
+            const a = document.createElement('a');
+            a.href = url.replace(/([^:]\/)\/+/g, "$1");
+            a.download = downloadName;
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
 
         window.evidenciasSeleccionadas = [];
         switchTab(currentTab);
