@@ -10,6 +10,42 @@ let currentRootFolder = '';
 
 window.logisticaSeleccionadas = { salida: [], entrada: [] };
 
+window.logisticaPressTimer = null;
+window.logisticaIsLongPress = false;
+
+window.startLogisticaPress = (e, tipo, file) => {
+    if (e.type === 'mousedown' && e.button !== 0) return;
+    window.logisticaIsLongPress = false;
+    window.logisticaPressTimer = setTimeout(() => {
+        window.logisticaIsLongPress = true;
+        window.toggleSeleccionLogistica(tipo, file);
+    }, 500);
+};
+
+window.cancelLogisticaPress = () => {
+    clearTimeout(window.logisticaPressTimer);
+};
+
+window.clickLogisticaFoto = (event, tipo, filename, encodedItems, index) => {
+    event.preventDefault();
+    if (window.logisticaIsLongPress) return;
+
+    // Only toggle if we are already in selection mode
+    if (window.logisticaSeleccionadas.salida.length > 0 || window.logisticaSeleccionadas.entrada.length > 0) {
+        window.toggleSeleccionLogistica(tipo, filename);
+        return;
+    }
+
+    // Otherwise, open Lightbox
+    try {
+        const mediaItems = JSON.parse(decodeURIComponent(encodedItems));
+        openLightboxGallery(mediaItems, index);
+    } catch (e) {
+        console.error("Error al abrir Lightbox", e);
+    }
+};
+
+
 export async function renderLogisticaSection(projectId) {
     currentProjectId = projectId;
     const container = document.getElementById('logistica-content');
@@ -78,8 +114,14 @@ export async function renderLogisticaSection(projectId) {
                     <div class="flex justify-between items-center mb-3 border-b border-gray-100 pb-2">
                         <span class="text-xs font-semibold text-indigo-700 uppercase">1. Guías de Salida</span>
                         <div class="flex gap-2">
+                            <button id="btn-download-logistica-salida" onclick="window.descargarEvidenciasLogisticaSeleccionadas('salida')" class="hidden bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold transition items-center">
+                                <i data-feather="download" width="12" class="sm:mr-1"></i> <span class="hidden sm:inline">Descargar (<span id="count-dl-salida">0</span>)</span>
+                            </button>
+                            <button id="btn-share-logistica-salida" onclick="window.compartirEvidenciasLogisticaSeleccionadas('salida')" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[10px] font-bold transition items-center">
+                                <i data-feather="share-2" width="12" class="sm:mr-1"></i> <span class="hidden sm:inline">Compartir (<span id="count-share-salida">0</span>)</span>
+                            </button>
                             <button id="btn-delete-logistica-salida" onclick="window.borrarEvidenciasLogisticaSeleccionadas('salida')" class="hidden bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-[10px] font-bold transition items-center">
-                                <i data-feather="trash-2" width="12" class="mr-1"></i> Eliminar (<span id="count-salida">0</span>)
+                                <i data-feather="trash-2" width="12" class="sm:mr-1"></i> <span class="hidden sm:inline">Eliminar (<span id="count-salida">0</span>)</span>
                             </button>
                             ${canManage ? `
                             <label class="cursor-pointer bg-indigo-50 hover:bg-indigo-100 text-indigo-600 px-2 py-1 rounded border border-indigo-100 text-[10px] font-semibold transition flex items-center">
@@ -95,8 +137,14 @@ export async function renderLogisticaSection(projectId) {
                     <div class="flex justify-between items-center mb-3 border-b border-gray-100 pb-2">
                         <span class="text-xs font-semibold text-emerald-700 uppercase">2. Guías de Entrada/Retorno</span>
                         <div class="flex gap-2">
+                            <button id="btn-download-logistica-entrada" onclick="window.descargarEvidenciasLogisticaSeleccionadas('entrada')" class="hidden bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded text-[10px] font-bold transition items-center">
+                                <i data-feather="download" width="12" class="sm:mr-1"></i> <span class="hidden sm:inline">Descargar (<span id="count-dl-entrada">0</span>)</span>
+                            </button>
+                            <button id="btn-share-logistica-entrada" onclick="window.compartirEvidenciasLogisticaSeleccionadas('entrada')" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 rounded text-[10px] font-bold transition items-center">
+                                <i data-feather="share-2" width="12" class="sm:mr-1"></i> <span class="hidden sm:inline">Compartir (<span id="count-share-entrada">0</span>)</span>
+                            </button>
                             <button id="btn-delete-logistica-entrada" onclick="window.borrarEvidenciasLogisticaSeleccionadas('entrada')" class="hidden bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-[10px] font-bold transition items-center">
-                                <i data-feather="trash-2" width="12" class="mr-1"></i> Eliminar (<span id="count-entrada">0</span>)
+                                <i data-feather="trash-2" width="12" class="sm:mr-1"></i> <span class="hidden sm:inline">Eliminar (<span id="count-entrada">0</span>)</span>
                             </button>
                             <label class="cursor-pointer bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2 py-1 rounded border border-emerald-100 text-[10px] font-semibold transition flex items-center">
                                 <i data-feather="plus" width="12" class="mr-1"></i> FOTO
@@ -182,38 +230,6 @@ export async function renderLogisticaSection(projectId) {
             </form>
         </div>
 
-        <!-- Modal PReview Fotos Logistica Carrusel -->
-        <div id="modal-backdrop-preview" class="fixed inset-0 bg-black/95 hidden z-[60] flex flex-col items-center justify-center">
-            
-            <div class="w-full max-w-4xl p-4 flex justify-between items-center text-white">
-                <span id="preview-counter" class="text-sm font-bold bg-white/20 px-3 py-1 rounded-full">1 / 1</span>
-                <button onclick="window.cerrarPreviewFotos()" class="text-white hover:text-red-400 p-2 transition">
-                    <i data-feather="x" width="24" height="24"></i>
-                </button>
-            </div>
-
-            <div class="flex-1 w-full max-w-4xl relative flex items-center justify-center p-4">
-                <button id="preview-btn-prev" onclick="window.previewFotoChange(-1)" class="absolute left-2 sm:left-4 z-10 bg-white/10 hover:bg-white/30 text-white rounded-full p-2 sm:p-4 backdrop-blur-sm transition">
-                    <i data-feather="chevron-left" width="24" height="24"></i>
-                </button>
-                
-                <img id="preview-main-img" src="" class="max-h-full max-w-full object-contain rounded-lg shadow-2xl transition-opacity duration-300">
-                
-                <button id="preview-btn-next" onclick="window.previewFotoChange(1)" class="absolute right-2 sm:right-4 z-10 bg-white/10 hover:bg-white/30 text-white rounded-full p-2 sm:p-4 backdrop-blur-sm transition">
-                    <i data-feather="chevron-right" width="24" height="24"></i>
-                </button>
-            </div>
-
-            <div class="w-full max-w-xl p-4 sm:p-6 bg-gray-900 mt-auto sm:mb-8 sm:rounded-2xl border-t sm:border border-gray-800 flex flex-col gap-4 shadow-2xl">
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">Comentario / Nombre de la foto</label>
-                    <input type="text" id="preview-input-nombre" oninput="window.previewUpdateName(this.value)" placeholder="Escribe un comentario..." class="w-full bg-gray-800 border border-gray-700 text-white rounded-lg p-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition">
-                </div>
-                <button id="btn-preview-subir" onclick="window.confirmarSubidaFotosLogistica()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-lg transition flex items-center justify-center gap-2">
-                    <i data-feather="upload-cloud" width="18"></i> <span id="lbl-preview-subir">SUBIR FOTOS</span>
-                </button>
-            </div>
-            
         </div>
     `;
 
@@ -281,31 +297,75 @@ async function cargarDatosLogistica() {
             const folderName = tipo === 'salida' ? 'Guias_Salida' : 'Guias_Entrada';
             let html = '';
 
-            // 1. DIBUJAR FOTOS QUE YA ESTÁN EN EL SERVIDOR
-            html += serverFiles.map(file => {
+            // Extract gallery items logic
+            let mediaItems = serverFiles.map((fObj) => {
+                const file = typeof fObj === 'string' ? fObj : fObj.nombre;
+                const comentario = typeof fObj === 'object' && fObj.comentario ? fObj.comentario : '';
                 const url = `${API_URL.replace('/api', '')}/uploads/${currentRootFolder}/Logistica/${folderName}/${file}`;
+                let displayName = comentario || file;
+                if (!comentario) displayName = displayName.replace(/\.[^/.]+$/, "");
+
+                return {
+                    url,
+                    type: 'image',
+                    title: displayName,
+                    fileRef: file,
+                    comentario: comentario,
+                    displayName: displayName,
+                    isLogistica: true,
+                    tipoLogistica: tipo
+                };
+            });
+
+            // 1. DIBUJAR FOTOS QUE YA ESTÁN EN EL SERVIDOR
+            html += mediaItems.map((item, index) => {
+                const url = item.url;
+                const file = item.fileRef;
+                const displayName = item.displayName;
+                const comentario = item.comentario || '';
+
                 const isChecked = window.logisticaSeleccionadas[tipo].includes(file);
+                // Selection indicator replaces checkbox
                 const checkHTML = (canManage || tipo === 'entrada') ? `
-                    <div class="absolute top-1 left-1 z-10 hidden group-hover:block" onclick="event.stopPropagation()">
-                        <input type="checkbox" onchange="window.toggleSeleccionLogistica('${tipo}', '${file}', this)" ${isChecked ? 'checked' : ''} class="w-4 h-4 text-red-600 bg-white border-gray-300 rounded cursor-pointer shadow-sm ${isChecked ? '!block' : ''}">
+                    <div id="sel-ind-${tipo}-${file.replace(/[^a-zA-Z0-9]/g, '_')}" class="selection-indicator absolute top-1 left-1 z-10 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-sm border border-white ${isChecked ? '' : 'hidden'}">
+                        <i data-feather="check" width="12" height="12"></i>
                     </div>` : '';
+
+                const encodedItems = encodeURIComponent(JSON.stringify(mediaItems));
+
                 return `
-                <div class="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                    <img src="${url}" class="w-full h-full object-cover cursor-pointer hover:scale-110 transition duration-300" onclick="openLightbox('${url}', 'image', '${file}')">
-                    ${checkHTML}
-                    ${canManage || tipo === 'entrada' ? `<button onclick="window.borrarFotoLogistica('${tipo}', '${file}')" class="absolute top-1 right-1 bg-black/50 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><i data-feather="x" width="10" height="10"></i></button>` : ''}
+                <div class="flex flex-col gap-1 items-center">
+                    <div id="card-logistica-${tipo}-${file.replace(/[^a-zA-Z0-9]/g, '_')}" class="relative group w-full aspect-square bg-gray-100 rounded-lg overflow-hidden border ${isChecked ? 'border-2 border-blue-500' : 'border-gray-200'}">
+                        <img src="${url}" class="w-full h-full object-cover cursor-pointer hover:scale-110 transition duration-300" oncontextmenu="return false;"
+                            ontouchstart="window.startLogisticaPress(event, '${tipo}', '${file}')" 
+                            ontouchend="window.cancelLogisticaPress()" 
+                            ontouchmove="window.cancelLogisticaPress()" 
+                            onmousedown="window.startLogisticaPress(event, '${tipo}', '${file}')" 
+                            onmouseup="window.cancelLogisticaPress()" 
+                            onmouseleave="window.cancelLogisticaPress()" 
+                            onclick="window.clickLogisticaFoto(event, '${tipo}', '${file}', '${encodedItems}', ${index})">
+                        <div class="selection-indicator ${isChecked ? 'flex' : 'hidden'} absolute top-1 left-1 bg-blue-500 text-white rounded-full p-0.5 z-10 shadow-md">
+                            <i data-feather="check" width="10" height="10"></i>
+                        </div>
+                        ${canManage || tipo === 'entrada' ? `
+                            <button onclick="event.stopPropagation(); window.renombrarFotoLogistica('${tipo}', '${file}', '${item.comentario ? item.comentario.replace(/'/g, "\\'") : ''}')" class="absolute top-1 right-7 bg-black/50 hover:bg-blue-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><i data-feather="edit-2" width="10" height="10"></i></button>
+                            <button onclick="event.stopPropagation(); window.borrarFotoLogistica('${tipo}', '${file}')" class="absolute top-1 right-1 bg-black/50 hover:bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition backdrop-blur-sm"><i data-feather="x" width="10" height="10"></i></button>
+                        ` : ''}
+                        <div class="absolute bottom-0 w-full bg-black/50 text-white text-[9px] p-0.5 text-center truncate pointer-events-none">${displayName}</div>
+                    </div>
                 </div>`;
             }).join('');
 
             // 2. DIBUJAR FOTOS PENDIENTES (DESDE EL CELULAR)
             html += pendientesFiles.map(p => {
                 const localUrl = URL.createObjectURL(p.archivo);
+                let displayName = p.nombreOriginal.replace(/\.[^/.]+$/, "");
                 return `
                 <div class="relative group aspect-square bg-yellow-50 rounded-lg overflow-hidden border-2 border-dashed border-yellow-400 opacity-90 transition transform hover:scale-105">
                     <div class="absolute top-1 left-1 bg-yellow-500 text-white text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm z-10 animate-pulse">
                         PENDIENTE RED
                     </div>
-                    <img src="${localUrl}" class="w-full h-full object-cover cursor-pointer" onclick="openLightbox('${localUrl}', 'image', '${p.nombreOriginal}')">
+                    <img src="${localUrl}" class="w-full h-full object-cover cursor-pointer" oncontextmenu="return false;" onclick="openLightbox('${localUrl}', 'image', '${displayName}')">
                 </div>`;
             }).join('');
 
@@ -489,7 +549,7 @@ window.guardarItemLogistica = async (e) => {
         window.cerrarModalLogistica();
         cargarDatosLogistica();
     } catch (err) {
-        alert("Error al guardar ítem");
+        await window.sysAlert("Error al guardar ítem");
         console.error(err);
     } finally {
         btnSubmit.innerHTML = prevText;
@@ -509,7 +569,7 @@ window.agregarItemLogistica = async (tipo) => {
 };
 
 window.borrarItemLogistica = async (id) => {
-    if (confirm("¿Borrar ítem?")) {
+    if (await window.sysConfirm("¿Borrar ítem?")) {
         await fetch(`${API_URL}/logistica/${id}`, { method: 'DELETE' });
         cargarDatosLogistica();
     }
@@ -538,161 +598,244 @@ window.updateEstado = async (id, val, tot) => {
 window.updateComentario = async (id, val) => { await fetch(`${API_URL}/logistica/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ comentario: val }) }); };
 
 // --- CAROUSEL PREVIEW Y SUBIDA INTELIGENTE ---
-window.previewFotosContext = {
-    list: [],
-    index: 0,
-    tipo: '',
-    btnOriginalText: ''
-};
-
 window.subirEvidenciaLogistica = async (tipo, input) => {
     const files = Array.from(input.files);
     if (files.length === 0) return;
 
-    window.previewFotosContext.tipo = tipo;
-    window.previewFotosContext.index = 0;
-    window.previewFotosContext.btnOriginalText = input.parentElement.innerHTML;
+    window.UploadCarousel.open(files, `Subir Guía de ${tipo === 'salida' ? 'Salida' : 'Entrada/Retorno'}`, async (processedFiles) => {
+        let encolados = 0;
 
-    // Convert files to memory objects for preview
-    window.previewFotosContext.list = files.map(file => {
-        let baseName = file.name;
-        let extension = "";
-        const dot = baseName.lastIndexOf('.');
-        if (dot > 0) {
-            extension = baseName.substring(dot);
-            baseName = baseName.substring(0, dot);
-        }
-        return {
-            file: file,
-            originalName: file.name,
-            baseName: baseName,
-            extension: extension,
-            previewUrl: URL.createObjectURL(file)
-        };
-    });
-
-    document.getElementById('modal-backdrop-preview').classList.remove('hidden');
-    renderPreviewFotoActual();
-    input.value = ""; // clear so we can select same files again if needed
-};
-
-function renderPreviewFotoActual() {
-    const ctx = window.previewFotosContext;
-    if (ctx.list.length === 0) return window.cerrarPreviewFotos();
-
-    const actual = ctx.list[ctx.index];
-
-    document.getElementById('preview-counter').innerText = `${ctx.index + 1} / ${ctx.list.length}`;
-    document.getElementById('preview-main-img').src = actual.previewUrl;
-    document.getElementById('preview-input-nombre').value = actual.baseName;
-
-    document.getElementById('preview-btn-prev').style.opacity = ctx.index > 0 ? '1' : '0.3';
-    document.getElementById('preview-btn-prev').style.pointerEvents = ctx.index > 0 ? 'auto' : 'none';
-
-    document.getElementById('preview-btn-next').style.opacity = ctx.index < ctx.list.length - 1 ? '1' : '0.3';
-    document.getElementById('preview-btn-next').style.pointerEvents = ctx.index < ctx.list.length - 1 ? 'auto' : 'none';
-}
-
-window.previewFotoChange = (dir) => {
-    const ctx = window.previewFotosContext;
-    const newIdx = ctx.index + dir;
-    if (newIdx >= 0 && newIdx < ctx.list.length) {
-        ctx.index = newIdx;
-        renderPreviewFotoActual();
-    }
-};
-
-window.previewUpdateName = (val) => {
-    const ctx = window.previewFotosContext;
-    if (ctx.list.length === 0) return;
-    // Remove slash and weird symbols that break filesystem manually
-    const cleanVal = val.replace(/[\/\\:*?"<>|]/g, '');
-    ctx.list[ctx.index].baseName = cleanVal;
-};
-
-window.cerrarPreviewFotos = () => {
-    document.getElementById('modal-backdrop-preview').classList.add('hidden');
-    window.previewFotosContext.list.forEach(item => URL.revokeObjectURL(item.previewUrl)); // Free memory
-    window.previewFotosContext.list = [];
-};
-
-window.confirmarSubidaFotosLogistica = async () => {
-    const ctx = window.previewFotosContext;
-    if (ctx.list.length === 0) return;
-
-    const btnSubir = document.getElementById('btn-preview-subir');
-    const lblSubir = document.getElementById('lbl-preview-subir');
-
-    const originalBtnHTML = btnSubir.innerHTML;
-    lblSubir.innerHTML = `PROCESANDO ${ctx.list.length}...`;
-    btnSubir.disabled = true;
-
-    let encolados = 0;
-
-    try {
-        for (const item of ctx.list) {
+        for (const item of processedFiles) {
             if (item.file.size > 10 * 1024 * 1024) continue;
 
-            const finalName = (item.baseName.trim() || 'foto_sin_nombre') + item.extension;
-            // Create a new file object with the renamed finalName
-            const renamedFile = new File([item.file], finalName, { type: item.file.type });
+            const finalName = item.safeName;
 
-            const fileComprimido = await comprimirFoto(renamedFile, 1200, 0.7);
+            // Build metadata payload safely inside FormData
+            const metadata = {
+                originalName: item.originalName,
+                comment: item.comment || ''
+            };
+
+            const fileComprimido = await comprimirFoto(item.file, 1200, 0.7);
             const fd = new FormData();
-            fd.append('foto', fileComprimido, finalName); // Enforce new name explicitly here too
+            fd.append('foto', fileComprimido, finalName);
+            fd.append('metadata', JSON.stringify(metadata));
 
-            const url = `${API_URL}/logistica/upload-evidence/${currentProjectId}/${ctx.tipo}`;
-            const result = await uploadOrQueue(url, fd, currentProjectId, `logistica-${ctx.tipo}`);
+            const url = `${API_URL}/logistica/upload-evidence/${currentProjectId}/${tipo}`;
+            const result = await uploadOrQueue(url, fd, currentProjectId, `logistica-${tipo}`);
 
             if (result.status === 'queued') encolados++;
         }
 
         if (encolados > 0) {
-            alert(`Red desconectada o inestable.\n\n${encolados} foto(s) guardada(s) en tu celular de forma segura.`);
+            await window.sysAlert(`Red desconectada o inestable.\n\n${encolados} foto(s) guardada(s) en tu celular de forma segura.`, 'warning');
         }
 
-    } catch (e) {
-        console.error("Upload error:", e);
-        alert("Error al subir foto(s)");
-    } finally {
-        btnSubir.innerHTML = originalBtnHTML;
-        btnSubir.disabled = false;
-        window.cerrarPreviewFotos();
         cargarDatosLogistica();
-    }
+    });
+
+    input.value = "";
 };
 
-window.toggleSeleccionLogistica = (tipo, archivo, checkbox) => {
-    if (checkbox.checked) {
-        if (!window.logisticaSeleccionadas[tipo].includes(archivo)) window.logisticaSeleccionadas[tipo].push(archivo);
+window.toggleSeleccionLogistica = (tipo, archivo) => {
+    const isSelected = window.logisticaSeleccionadas[tipo].includes(archivo);
+    if (!isSelected) {
+        window.logisticaSeleccionadas[tipo].push(archivo);
     } else {
         window.logisticaSeleccionadas[tipo] = window.logisticaSeleccionadas[tipo].filter(f => f !== archivo);
+    }
+
+    const safeFileId = archivo.replace(/[^a-zA-Z0-9]/g, '_');
+    const card = document.getElementById(`card-logistica-${tipo}-${safeFileId}`);
+    const indicator = document.getElementById(`sel-ind-${tipo}-${safeFileId}`);
+
+    if (card) {
+        if (window.logisticaSeleccionadas[tipo].includes(archivo)) {
+            card.classList.replace('border-gray-200', 'border-blue-500');
+            card.classList.add('border-2');
+            if (indicator) indicator.classList.remove('hidden');
+        } else {
+            card.classList.replace('border-blue-500', 'border-gray-200');
+            card.classList.remove('border-2');
+            if (indicator) indicator.classList.add('hidden');
+        }
     }
     actualizarBotonEliminarLogistica(tipo);
 };
 
 function actualizarBotonEliminarLogistica(tipo) {
-    const btn = document.getElementById(`btn-delete-logistica-${tipo}`);
-    const count = document.getElementById(`count-${tipo}`);
+    const btnDel = document.getElementById(`btn-delete-logistica-${tipo}`);
+    const countDel = document.getElementById(`count-${tipo}`);
+    const btnDown = document.getElementById(`btn-download-logistica-${tipo}`);
+    const countDown = document.getElementById(`count-dl-${tipo}`);
+    const btnShare = document.getElementById(`btn-share-logistica-${tipo}`);
+    const countShare = document.getElementById(`count-share-${tipo}`);
+
     const numSeleccionadas = window.logisticaSeleccionadas[tipo].length;
 
-    if (btn && count) {
-        count.innerText = numSeleccionadas;
-        if (numSeleccionadas > 0) {
-            btn.classList.remove('hidden');
-            btn.classList.add('flex');
-        } else {
-            btn.classList.add('hidden');
-            btn.classList.remove('flex');
-        }
+    if (btnDel && countDel) countDel.innerText = numSeleccionadas;
+    if (btnDown && countDown) countDown.innerText = numSeleccionadas;
+    if (btnShare && countShare) countShare.innerText = numSeleccionadas;
+
+    if (numSeleccionadas > 0) {
+        if (btnDel) { btnDel.classList.remove('hidden'); btnDel.classList.add('flex'); }
+        if (btnDown) { btnDown.classList.remove('hidden'); btnDown.classList.add('flex'); }
+        if (btnShare) { btnShare.classList.remove('hidden'); btnShare.classList.add('flex'); }
+    } else {
+        if (btnDel) { btnDel.classList.add('hidden'); btnDel.classList.remove('flex'); }
+        if (btnDown) { btnDown.classList.add('hidden'); btnDown.classList.remove('flex'); }
+        if (btnShare) { btnShare.classList.add('hidden'); btnShare.classList.remove('flex'); }
     }
 }
+
+window.clearSeleccionLogistica = () => {
+    window.logisticaSeleccionadas = { salida: [], entrada: [] };
+    document.querySelectorAll('[id^="card-logistica-"]').forEach(card => {
+        card.classList.replace('border-blue-500', 'border-gray-200');
+        card.classList.remove('border-2');
+    });
+    document.querySelectorAll('.selection-indicator').forEach(ind => ind.classList.add('hidden'));
+
+    actualizarBotonEliminarLogistica('salida');
+    actualizarBotonEliminarLogistica('entrada');
+};
+
+window.compartirEvidenciasLogisticaSeleccionadas = async (tipo) => {
+    const seleccionadas = window.logisticaSeleccionadas[tipo];
+    if (seleccionadas.length === 0) return;
+    if (!navigator.share) {
+        return await window.sysAlert("Por seguridad de tu navegador o celular, la opción de 'Compartir' requiere usar HTTPS o Localhost. Como estás accediendo desde una IP local (WiFi normal), tu celular bloquea esta función nativa de compartir.");
+    }
+
+    const btn = document.getElementById(`btn-share-logistica-${tipo}`);
+    const prevHtml = btn ? btn.innerHTML : '';
+    if (btn) btn.innerHTML = `<i data-feather="loader" width="16" class="animate-spin text-white"></i>`;
+    if (window.feather) feather.replace();
+
+    try {
+        const folderName = tipo === 'salida' ? 'Guias_Salida' : 'Guias_Entrada';
+        const filesToShare = [];
+        let allComments = [];
+
+        for (const archivo of seleccionadas) {
+            const urlObj = new URL(`${API_URL.replace('/api', '')}/uploads/${currentRootFolder}/Logistica/${folderName}/${archivo}`.replace(/([^:]\/)\/+/g, "$1"));
+            const res = await fetch(urlObj.href);
+            const blob = await res.blob();
+            filesToShare.push(new File([blob], archivo, { type: blob.type }));
+
+            // Try to find comment from DOM
+            const safeFileId = archivo.replace(/[^a-zA-Z0-9]/g, '_');
+            const cardId = `card-logistica-${tipo}-${safeFileId}`;
+            const card = document.getElementById(cardId);
+            if (card) {
+                const commentDiv = card.querySelector('.truncate');
+                if (commentDiv && commentDiv.innerText && commentDiv.innerText.trim() !== '') {
+                    allComments.push(commentDiv.innerText.trim());
+                }
+            }
+        }
+
+        const shareData = {
+            title: `Logística - ${tipo === 'salida' ? 'Salida' : 'Entrada'}`,
+            text: allComments.join(' | '),
+            files: filesToShare
+        };
+
+        if (navigator.canShare(shareData)) {
+            await navigator.share(shareData);
+            window.clearSeleccionLogistica();
+        } else {
+            await window.sysAlert("Tu navegador no soporta compartir estas fotos directamente.");
+        }
+    } catch (err) {
+        console.error("Error compartiendo logistica:", err);
+        if (err.name !== "AbortError" && err.name !== "NotAllowedError") {
+            await window.sysAlert("Error al intentar compartir los archivos.");
+        }
+    } finally {
+        if (btn) btn.innerHTML = prevHtml;
+        if (window.feather) feather.replace();
+    }
+};
+
+window.descargarEvidenciasLogisticaSeleccionadas = async (tipo) => {
+    const seleccionadas = window.logisticaSeleccionadas[tipo];
+    if (seleccionadas.length === 0) return;
+
+    if (seleccionadas.length === 1) {
+        const archivo = seleccionadas[0];
+        const folderName = tipo === 'salida' ? 'Guias_Salida' : 'Guias_Entrada';
+        const urlObj = new URL(`${API_URL.replace('/api', '')}/uploads/${currentRootFolder}/Logistica/${folderName}/${archivo}`.replace(/([^:]\/)\/+/g, "$1"));
+
+        const a = document.createElement('a');
+        a.href = urlObj.href;
+        a.download = archivo;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        window.logisticaSeleccionadas[tipo] = [];
+        actualizarBotonEliminarLogistica(tipo);
+        cargarDatosLogistica();
+        return;
+    }
+
+    const btn = document.getElementById(`btn-download-logistica-${tipo}`);
+    const prevHtml = btn ? btn.innerHTML : '';
+    if (btn) btn.innerHTML = `<i data-feather="loader" width="16" class="animate-spin text-white"></i>`;
+    if (window.feather) feather.replace();
+
+    try {
+        const payload = {
+            tipo: tipo,
+            files: seleccionadas
+        };
+
+        const res = await fetch(`${API_URL}/logistica/descargar-multiples/${currentProjectId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error("Error al procesar la descarga de múltiples fotos de logística");
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+
+        let filename = `Guias_${tipo.toUpperCase()}_Seleccion.zip`;
+        const disposition = res.headers.get('Content-Disposition');
+        if (disposition && disposition.indexOf('filename=') !== -1) {
+            filename = disposition.split('filename=')[1].replace(/["']/g, '');
+        }
+
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+    } catch (err) {
+        console.error(err);
+        await window.sysAlert(`Error al descargar guías de ${tipo}`);
+    } finally {
+        if (btn) btn.innerHTML = prevHtml;
+        if (window.feather) feather.replace();
+    }
+
+    window.logisticaSeleccionadas[tipo] = [];
+    actualizarBotonEliminarLogistica(tipo);
+    cargarDatosLogistica();
+};
 
 window.borrarEvidenciasLogisticaSeleccionadas = async (tipo) => {
     const seleccionadas = window.logisticaSeleccionadas[tipo];
     if (seleccionadas.length === 0) return;
 
-    if (confirm(`¿Eliminar ${seleccionadas.length} foto(s)?`)) {
+    if (await window.sysConfirm(`¿Eliminar ${seleccionadas.length} foto(s)?`)) {
         document.getElementById(`btn-delete-logistica-${tipo}`).innerHTML = 'Borrando...';
 
         try {
@@ -704,18 +847,39 @@ window.borrarEvidenciasLogisticaSeleccionadas = async (tipo) => {
             cargarDatosLogistica();
         } catch (error) {
             console.error(error);
-            alert("Error al eliminar las fotos");
+            await window.sysAlert("Error al eliminar las fotos");
         }
     }
 };
 
-window.borrarFotoLogistica = async (tipo, archivo) => {
-    if (confirm("¿Eliminar esta foto permanentemente?")) {
+window.renombrarFotoLogistica = async (tipo, filename, currentComment) => {
+    const baseName = currentComment ? currentComment : filename.replace(/\.[^/.]+$/, "");
+    const newComment = await window.sysPrompt(`Nuevo comentario para la foto:`, baseName);
+
+    if (newComment === null || newComment === currentComment) return;
+
+    try {
+        const res = await fetch(`${API_URL}/logistica/rename-evidence/${currentProjectId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tipo, filename, newComment: newComment.trim() })
+        });
+        const data = await res.json();
+        if (data.success) cargarDatosLogistica();
+        else await window.sysAlert("Error al renombrar comentario.");
+    } catch (e) {
+        console.error(e);
+        await window.sysAlert("Error de conexión");
+    }
+};
+
+window.borrarFotoLogistica = async (tipo, filename) => {
+    if (await window.sysConfirm("¿Eliminar esta foto permanentemente?")) {
         try {
-            await fetch(`${API_URL}/logistica/delete-evidence/${currentProjectId}/${tipo}/${archivo}`, { method: 'DELETE' });
+            await fetch(`${API_URL}/logistica/delete-evidence/${currentProjectId}/${tipo}/${filename}`, { method: 'DELETE' });
             cargarDatosLogistica();
         } catch (error) {
-            alert("Error al borrar foto");
+            await window.sysAlert("Error al borrar foto");
         }
     }
 };

@@ -97,7 +97,7 @@ export function renderProjectList(projects) {
 
 window.handleDeleteProject = async (e, id) => {
     e.stopPropagation();
-    if (!confirm("¿Eliminar proyecto?")) return;
+    if (!(await window.sysConfirm("¿Eliminar proyecto?"))) return;
     const success = await projectsService.delete(id);
     if (success) {
         const input = document.getElementById('global-search');
@@ -105,7 +105,7 @@ window.handleDeleteProject = async (e, id) => {
         const nuevosProyectos = await projectsService.getAll(term);
         renderProjectList(nuevosProyectos);
     } else {
-        alert("Error al eliminar");
+        await window.sysAlert("Error al eliminar");
     }
 };
 
@@ -132,7 +132,7 @@ window.toggleOffline = async (e, projectId) => {
             btn.innerHTML = `<i data-feather="cloud-drizzle" width="16"></i>`;
         } catch (error) {
             console.error(error);
-            alert("Error al liberar espacio: " + error.message);
+            await window.sysAlert("Error al liberar espacio: " + error.message);
             btn.innerHTML = `<i data-feather="check-circle" width="16"></i>`; // Regresar a verde si falló
         }
 
@@ -207,7 +207,7 @@ window.toggleOffline = async (e, projectId) => {
 
         } catch (error) {
             console.error("Error exacto de descarga:", error);
-            alert(`Error al descargar:\n${error.message}`);
+            await window.sysAlert(`Error al descargar:\n${error.message}`);
             btn.innerHTML = `<i data-feather="cloud-drizzle" width="16"></i>`;
         }
     }

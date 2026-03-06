@@ -211,6 +211,7 @@ function renderFiles(items, rootFolder, pendientesFiles = []) {
     if (!container) return;
 
     container.innerHTML = '';
+    window.currentRootFolder = rootFolder; // Save for download utility
 
     if (!Array.isArray(items)) items = [];
     if (currentTab !== 'fotos') items = items.filter(i => i.type !== 'folder');
@@ -224,6 +225,29 @@ function renderFiles(items, rootFolder, pendientesFiles = []) {
     items.sort((a, b) => a.type === 'folder' ? -1 : 1);
     const canManage = state.user.role !== 'tecnico';
 
+    // Pre-calculate gallery items for Lightbox
+    let mediaItems = [];
+    items.forEach((item, index) => {
+        const isImg = item.name.match(/\.(jpg|jpeg|png|webp)$/i);
+        const isPdf = item.name.endsWith('.pdf');
+        if (isImg || isPdf) {
+            const url = `${API_URL.replace('/api', '')}/uploads/${rootFolder}/${item.path}`;
+            const comentario = typeof item.comentario === 'string' ? item.comentario : '';
+            let displayName = comentario || item.name;
+            if (!comentario) displayName = displayName.replace(/\.[^/.]+$/, ""); // Hide extension if no comment
+
+            item._mediaIndex = mediaItems.length;
+            mediaItems.push({
+                url,
+                type: isImg ? 'image' : 'pdf',
+                title: displayName,
+                fileRef: item.name,
+                comentario: comentario,
+                isLogistica: false
+            });
+        }
+    });
+
     items.forEach(item => {
         const url = `${API_URL.replace('/api', '')}/uploads/${rootFolder}/${item.path}`;
         const isImg = item.name.match(/\.(jpg|jpeg|png|webp)$/i);
@@ -231,35 +255,88 @@ function renderFiles(items, rootFolder, pendientesFiles = []) {
         const isWord = item.name.endsWith('.docx');
         const isDir = item.type === 'folder';
 
+        const comentario = typeof item.comentario === 'string' ? item.comentario : '';
+        let displayName = comentario || item.name;
+        if (!comentario && !isDir) displayName = displayName.replace(/\.[^/.]+$/, "");
+
         const el = document.createElement('div');
         el.className = "flex flex-col items-center p-3 rounded-xl hover:bg-blue-50 cursor-pointer text-center bg-white border border-gray-100 shadow-sm transition-all hover:shadow-md hover:-translate-y-1 relative group";
+
+        const isSelected = window.evidenciasSeleccionadas.includes(item.name);
+        el.id = `evidencia-card-${item.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        if (isSelected) {
+            el.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50');
+        }
+
+        let pressTimer;
+        let isLongPress = false;
+        const startPress = (e) => {
+            if (e.type === 'mousedown' && e.button !== 0) return;
+            isLongPress = false;
+            pressTimer = setTimeout(() => {
+                isLongPress = true;
+                window.toggleSeleccionEvidencia(item.name);
+            }, 500);
+        };
+        const cancelPress = () => clearTimeout(pressTimer);
+
+        el.addEventListener('touchstart', startPress, { passive: true });
+        el.addEventListener('touchend', cancelPress, { passive: true });
+        el.addEventListener('touchmove', cancelPress, { passive: true });
+        el.addEventListener('mousedown', startPress);
+        el.addEventListener('mouseup', cancelPress);
+        el.addEventListener('mouseleave', cancelPress);
+
+        el.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (isLongPress) return;
+            if (window.evidenciasSeleccionadas.length > 0) {
+                window.toggleSeleccionEvidencia(item.name);
+                return;
+            }
+            if (isDir) {
+                navegar(item.path);
+            } else if (isImg || isPdf) {
+                openLightboxGallery(mediaItems, item._mediaIndex);
+            } else {
+                window.open(url, '_blank');
+            }
+        });
 
         let preview = '';
 
         if (isDir) {
             preview = `<div class="mb-2 transition-transform group-hover:scale-110"><i data-feather="folder" class="text-yellow-400 fill-yellow-100" width="40" height="40"></i></div>`;
-            el.onclick = () => navegar(item.path);
-        } else if (isImg) {
-            preview = `<div class="w-full h-24 mb-2 bg-gray-100 rounded-lg overflow-hidden border border-gray-100 relative"><img src="${url}" class="w-full h-full object-cover transition-transform group-hover:scale-105" loading="lazy"></div>`;
-            el.onclick = () => openLightbox(url, 'image', item.name);
+        } else if (isImg || isPdf) {
+            if (isImg) {
+                preview = `<div class="w-full h-24 mb-2 bg-gray-100 rounded-lg overflow-hidden border border-gray-100 relative"><img src="${url}" class="w-full h-full object-cover transition-transform group-hover:scale-105" loading="lazy" oncontextmenu="return false;"></div>`;
+            } else {
+                let icon = 'file-text';
+                let colorClass = 'text-red-500';
+                preview = `<div class="w-full h-24 mb-2 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 group-hover:bg-white transition-colors"><i data-feather="${icon}" class="${colorClass}" width="32"></i></div>`;
+            }
         } else {
-            let icon = isPdf ? 'file-text' : (isWord ? 'file-text' : 'file');
-            let colorClass = isPdf ? 'text-red-500' : (isWord ? 'text-blue-600' : 'text-gray-400');
+            let icon = isWord ? 'file-text' : 'file';
+            let colorClass = isWord ? 'text-blue-600' : 'text-gray-400';
             preview = `<div class="w-full h-24 mb-2 bg-gray-50 rounded-lg flex items-center justify-center border border-gray-100 group-hover:bg-white transition-colors"><i data-feather="${icon}" class="${colorClass}" width="32"></i></div>`;
-            if (isPdf) el.onclick = () => openLightbox(url, 'pdf', item.name);
-            else el.onclick = () => window.open(url, '_blank');
         }
 
         let actionsHTML = canManage ? `
-            <div class="absolute top-2 left-2 z-10 hidden group-hover:block" onclick="event.stopPropagation()">
-                <input type="checkbox" onchange="window.toggleSeleccionEvidencia('${item.name}', this)" ${window.evidenciasSeleccionadas.includes(item.name) ? 'checked' : ''} class="w-4 h-4 text-red-600 bg-white border-gray-300 rounded focus:ring-red-500 cursor-pointer shadow-sm ${window.evidenciasSeleccionadas.includes(item.name) ? '!block' : ''}">
+            <div class="selection-indicator absolute top-2 left-2 z-10 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-sm border border-white ${isSelected ? '' : 'hidden'}">
+                <i data-feather="check" width="12" height="12"></i>
             </div>
             <div class="absolute top-2 right-2 hidden group-hover:flex gap-1 z-10">
-                <button onclick="event.stopPropagation(); window.renombrarItem('${item.name}')" class="bg-white/90 text-blue-500 hover:text-blue-700 p-1.5 rounded-full shadow-sm hover:bg-blue-50 transition border border-gray-100"><i data-feather="edit-2" width="12" height="12"></i></button>
+                <button onclick="event.stopPropagation(); window.renombrarItem('${item.name}', ${(isImg || isPdf) ? `'${comentario.replace(/'/g, "\\'")}'` : 'undefined'})" class="bg-white/90 text-blue-500 hover:text-blue-700 p-1.5 rounded-full shadow-sm hover:bg-blue-50 transition border border-gray-100"><i data-feather="edit-2" width="12" height="12"></i></button>
                 <button onclick="event.stopPropagation(); window.borrarItem('${item.name}')" class="bg-white/90 text-red-500 hover:text-red-700 p-1.5 rounded-full shadow-sm hover:bg-red-50 transition border border-gray-100"><i data-feather="trash-2" width="12" height="12"></i></button>
             </div>` : '';
 
-        el.innerHTML = `${actionsHTML}${preview}<span class="text-[10px] font-bold text-gray-600 truncate w-full px-1" title="${item.name}">${item.name}</span>`;
+        el.innerHTML = `
+            ${preview}
+            <span class="text-xs font-semibold text-gray-700 truncate w-full" title="${displayName}">
+                ${displayName}
+            </span>
+            ${actionsHTML}
+        `;
         container.appendChild(el);
     });
 
@@ -323,7 +400,7 @@ function setupExplorerDragAndDrop() {
         if (filesToUpload.length > 0) {
             await uploadFiles(filesToUpload);
         } else {
-            alert("No hay archivos válidos.");
+            await window.sysAlert("No hay archivos válidos.");
             switchTab(currentTab);
         }
     });
@@ -347,36 +424,45 @@ async function uploadFiles(fileList) {
         const uploadPath = currentTab === 'fotos' ? currentBrowserPath : '';
         const url = `${API_URL}/informes/subir`;
 
-        let encolados = 0;
+        window.UploadCarousel.open(fileList, "Subir Evidencias", async (processedFiles) => {
+            let encolados = 0;
 
-        for (const file of fileList) {
-            const fd = new FormData();
-            fd.append('projectFolder', rootFolder);
-            fd.append('subPath', uploadPath);
+            for (const item of processedFiles) {
+                const fd = new FormData();
+                fd.append('projectFolder', rootFolder);
+                fd.append('subPath', uploadPath);
 
-            let finalFile = file;
-            if (file.type && file.type.match(/image.*/)) {
-                finalFile = await comprimirFoto(file, 1200, 0.7);
+                let finalFile = item.file;
+                if (finalFile.type && finalFile.type.match(/image.*/)) {
+                    finalFile = await comprimirFoto(finalFile, 1200, 0.7);
+                }
+
+                // Build metadata element for the backend
+                const metadata = {
+                    originalName: item.originalName,
+                    comment: item.comment || ''
+                };
+
+                fd.append('files', finalFile, item.safeName);
+                fd.append('filePaths', JSON.stringify([finalFile.fullPath || item.safeName]));
+                fd.append('metadata', JSON.stringify(metadata));
+
+                const tipoQueue = `evidencias-${uploadPath}`;
+                const result = await uploadOrQueue(url, fd, activeReportId, tipoQueue);
+
+                if (result.status === 'queued') encolados++;
             }
 
-            fd.append('files', finalFile, finalFile.name);
-            fd.append('filePaths', JSON.stringify([file.fullPath || file.name]));
+            if (encolados > 0) {
+                await window.sysAlert(`Red desconectada.\n\n${encolados} foto(s) guardada(s) en tu celular. Se subirán al volver a tener señal.`, 'warning');
+            }
 
-            const tipoQueue = `evidencias-${uploadPath}`;
-            const result = await uploadOrQueue(url, fd, activeReportId, tipoQueue);
-
-            if (result.status === 'queued') encolados++;
-        }
-
-        if (encolados > 0) {
-            alert(`Red desconectada.\n\n${encolados} foto(s) guardada(s) en tu celular. Se subirán al volver a tener señal.`);
-        }
-
-        switchTab(currentTab);
+            switchTab(currentTab);
+        });
 
     } catch (e) {
         console.error(e);
-        alert("Error de conexión al subir.");
+        await window.sysAlert("Error de conexión al subir.");
         switchTab(currentTab);
     }
 }
@@ -396,35 +482,45 @@ window.subirAFolderActual = async (input, isFolder) => {
     input.value = '';
 };
 
-window.renombrarItem = async (oldName) => {
+window.renombrarItem = async (oldName, currentComment) => {
+    const isEditingComment = currentComment !== undefined;
+
     let baseName = oldName;
     let extension = "";
-    const lastDotIndex = oldName.lastIndexOf('.');
-    if (lastDotIndex > 0) {
-        baseName = oldName.substring(0, lastDotIndex);
-        extension = oldName.substring(lastDotIndex);
+
+    if (isEditingComment) {
+        baseName = currentComment ? currentComment : oldName.replace(/\.[^/.]+$/, "");
+    } else {
+        const lastDotIndex = oldName.lastIndexOf('.');
+        if (lastDotIndex > 0) {
+            baseName = oldName.substring(0, lastDotIndex);
+            extension = oldName.substring(lastDotIndex);
+        }
     }
 
-    const newBase = prompt(`Renombrar "${oldName}" a:`, baseName);
-    if (!newBase || newBase === baseName) return;
-    if (newBase.includes("/") || newBase.includes("\\")) return alert("El nombre no puede contener barras.");
+    const newBase = await window.sysPrompt(isEditingComment ? `Nuevo comentario para la foto:` : `Renombrar "${oldName}" a:`, baseName);
+    if (newBase === null || newBase === baseName) return;
+    if (!isEditingComment && (newBase.includes("/") || newBase.includes("\\"))) return await window.sysAlert("El nombre no puede contener barras.");
 
-    const finalName = newBase.trim() + extension;
+    const finalName = isEditingComment ? newBase.trim() : newBase.trim() + extension;
 
     try {
+        const reqBody = { currentPath: currentBrowserPath, oldName: oldName, newName: finalName };
+        if (isEditingComment) reqBody.editCommentOnly = true;
+
         const res = await fetch(`${API_URL}/informes/rename/${activeReportId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ currentPath: currentBrowserPath, oldName: oldName, newName: finalName })
+            body: JSON.stringify(reqBody)
         });
         const data = await res.json();
         if (data.success) switchTab(currentTab);
-        else alert("Error al renombrar: " + (data.error || 'Desconocido'));
-    } catch (e) { console.error(e); alert("Error de conexión"); }
+        else await window.sysAlert("Error al renombrar: " + (data.error || 'Desconocido'));
+    } catch (e) { console.error(e); await window.sysAlert("Error de conexión"); }
 };
 
 window.borrarItem = async (itemName) => {
-    if (!confirm(`¿Eliminar "${itemName}"?`)) return;
+    if (!(await window.sysConfirm(`¿Eliminar "${itemName}"?`))) return;
     try {
         const res = await fetch(`${API_URL}/informes/delete-item/${activeReportId}`, {
             method: 'POST',
@@ -436,38 +532,84 @@ window.borrarItem = async (itemName) => {
             window.evidenciasSeleccionadas = window.evidenciasSeleccionadas.filter(i => i !== itemName);
             switchTab(currentTab);
         }
-        else alert("Error al eliminar");
-    } catch (e) { console.error(e); }
+        else await window.sysAlert("Error al eliminar");
+    } catch (e) { console.error(e); await window.sysAlert("Error de conexión"); }
 };
 
-window.toggleSeleccionEvidencia = (itemName, checkbox) => {
-    if (checkbox.checked) {
-        if (!window.evidenciasSeleccionadas.includes(itemName)) window.evidenciasSeleccionadas.push(itemName);
+window.toggleSeleccionEvidencia = (itemName) => {
+    const isSelected = window.evidenciasSeleccionadas.includes(itemName);
+    if (!isSelected) {
+        window.evidenciasSeleccionadas.push(itemName);
     } else {
         window.evidenciasSeleccionadas = window.evidenciasSeleccionadas.filter(i => i !== itemName);
     }
 
-    // force show checkbox if selected
-    if (checkbox.checked) checkbox.parentElement.classList.replace("hidden", "block");
-    else checkbox.parentElement.classList.replace("block", "hidden");
-
-    const btn = document.getElementById('btn-delete-evidencias');
-    if (btn) {
-        if (window.evidenciasSeleccionadas.length > 0) {
-            btn.classList.remove('hidden');
-            btn.classList.add('flex');
-            btn.innerHTML = `<i data-feather="trash-2" width="14" class="mr-1"></i> Eliminar (${window.evidenciasSeleccionadas.length})`;
-            if (window.feather) window.feather.replace();
+    const cardId = `evidencia-card-${itemName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const card = document.getElementById(cardId);
+    if (card) {
+        if (window.evidenciasSeleccionadas.includes(itemName)) {
+            card.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50');
+            card.querySelector('.selection-indicator')?.classList.remove('hidden');
         } else {
-            btn.classList.add('hidden');
-            btn.classList.remove('flex');
+            card.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50');
+            card.querySelector('.selection-indicator')?.classList.add('hidden');
+        }
+    }
+
+    const btnDel = document.getElementById('btn-delete-evidencias');
+    const btnDown = document.getElementById('btn-download-evidencias');
+    const btnShare = document.getElementById('btn-share-evidencias');
+    if (window.evidenciasSeleccionadas.length > 0) {
+        if (btnDel) {
+            btnDel.classList.remove('hidden');
+            btnDel.classList.add('flex');
+            btnDel.innerHTML = `<i data-feather="trash-2" width="14" class="sm:mr-1"></i> <span class="hidden sm:inline">Eliminar (${window.evidenciasSeleccionadas.length})</span>`;
+        }
+        if (btnDown) {
+            btnDown.classList.remove('hidden');
+            btnDown.classList.add('flex');
+            btnDown.innerHTML = `<i data-feather="download" width="14" class="sm:mr-1"></i> <span class="hidden sm:inline">Descargar (${window.evidenciasSeleccionadas.length})</span>`;
+        }
+        if (btnShare) {
+            btnShare.classList.remove('hidden');
+            btnShare.classList.add('flex');
+            btnShare.innerHTML = `<i data-feather="share-2" width="14" class="sm:mr-1"></i> <span class="hidden sm:inline">Compartir (${window.evidenciasSeleccionadas.length})</span>`;
+        }
+        if (window.feather) window.feather.replace();
+    } else {
+        if (btnDel) {
+            btnDel.classList.add('hidden');
+            btnDel.classList.remove('flex');
+        }
+        if (btnDown) {
+            btnDown.classList.add('hidden');
+            btnDown.classList.remove('flex');
+        }
+        if (btnShare) {
+            btnShare.classList.add('hidden');
+            btnShare.classList.remove('flex');
         }
     }
 };
 
+window.clearSeleccionEvidencias = () => {
+    window.evidenciasSeleccionadas = [];
+    document.querySelectorAll('[id^="evidencia-card-"]').forEach(card => {
+        card.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50');
+        const indicator = card.querySelector('.selection-indicator');
+        if (indicator) indicator.classList.add('hidden');
+    });
+    const btnDel = document.getElementById('btn-delete-evidencias');
+    const btnDown = document.getElementById('btn-download-evidencias');
+    const btnShare = document.getElementById('btn-share-evidencias');
+    if (btnDel) { btnDel.classList.add('hidden'); btnDel.classList.remove('flex'); }
+    if (btnDown) { btnDown.classList.add('hidden'); btnDown.classList.remove('flex'); }
+    if (btnShare) { btnShare.classList.add('hidden'); btnShare.classList.remove('flex'); }
+};
+
 window.borrarEvidenciasSeleccionadas = async () => {
     if (window.evidenciasSeleccionadas.length === 0) return;
-    if (!confirm(`¿Eliminar ${window.evidenciasSeleccionadas.length} elemento(s)?`)) return;
+    if (!(await window.sysConfirm(`¿Eliminar ${window.evidenciasSeleccionadas.length} elemento(s)?`))) return;
 
     const btn = document.getElementById('btn-delete-evidencias');
     if (btn) btn.innerHTML = 'Borrando...';
@@ -485,6 +627,136 @@ window.borrarEvidenciasSeleccionadas = async () => {
     switchTab(currentTab);
 };
 
+window.compartirEvidenciasSeleccionadas = async () => {
+    if (window.evidenciasSeleccionadas.length === 0) return;
+    if (!navigator.share) {
+        return await window.sysAlert("Por seguridad de tu navegador o celular, la opción de 'Compartir' requiere usar HTTPS o Localhost. Como estás accediendo desde una IP local (WiFi normal), tu celular bloquea esta función nativa de compartir.");
+    }
+
+    const btn = document.getElementById('btn-share-evidencias');
+    const prevHtml = btn ? btn.innerHTML : '';
+    if (btn) btn.innerHTML = `<i data-feather="loader" class="animate-spin text-white"></i>`;
+    if (window.feather) feather.replace();
+
+    try {
+        const filesToShare = [];
+        let allComments = [];
+
+        for (const itemName of window.evidenciasSeleccionadas) {
+            const root = window.currentRootFolder;
+            const subPath = window.currentBrowserPath;
+            const url = `${API_URL.replace('/api', '')}/uploads/${root}/${subPath}/${itemName}`.replace(/([^:]\/)\/+/g, "$1");
+
+            const res = await fetch(url);
+            const blob = await res.blob();
+            filesToShare.push(new File([blob], itemName, { type: blob.type }));
+
+            const cardId = `evidencia-card-${itemName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            const card = document.getElementById(cardId);
+            if (card) {
+                const commentDiv = card.querySelector('.truncate');
+                if (commentDiv && commentDiv.innerText && commentDiv.innerText.trim() !== '') {
+                    allComments.push(commentDiv.innerText.trim());
+                }
+            }
+        }
+
+        const shareData = {
+            title: `Evidencias - ${window.currentBrowserPath || 'Descargas'}`,
+            text: allComments.join(' | '),
+            files: filesToShare
+        };
+
+        if (navigator.canShare(shareData)) {
+            await navigator.share(shareData);
+            window.clearSeleccionEvidencias();
+        } else {
+            await window.sysAlert("Tu navegador no soporta compartir estas fotos directamente.");
+        }
+    } catch (err) {
+        console.error("Error compartiendo:", err);
+        if (err.name !== "AbortError" && err.name !== "NotAllowedError") {
+            await window.sysAlert("Error al intentar compartir los archivos.");
+        }
+    } finally {
+        if (btn) btn.innerHTML = prevHtml;
+        if (window.feather) feather.replace();
+    }
+};
+
+window.descargarEvidenciasSeleccionadas = async () => {
+    if (window.evidenciasSeleccionadas.length === 0) return;
+
+    const itemsToDownload = window.evidenciasSeleccionadas;
+    if (itemsToDownload.length === 1) {
+        const itemName = itemsToDownload[0];
+        let root = window.currentRootFolder;
+        let subPath = window.currentBrowserPath;
+        const urlObj = new URL(`${API_URL.replace('/api', '')}/uploads/${root}/${subPath}/${itemName}`.replace(/([^:]\/)\/+/g, "$1"));
+
+        const a = document.createElement('a');
+        a.href = urlObj.href;
+        a.download = itemName;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        window.evidenciasSeleccionadas = [];
+        switchTab(currentTab);
+        return;
+    }
+
+    const btn = document.getElementById('btn-download-evidencias');
+    const prevHtml = btn ? btn.innerHTML : '';
+    if (btn) btn.innerHTML = `<i data-feather="loader" class="animate-spin text-white"></i>`;
+    if (window.feather) feather.replace();
+
+    try {
+        const payload = {
+            currentPath: currentBrowserPath,
+            files: itemsToDownload
+        };
+
+        const res = await fetch(`${API_URL}/informes/descargar-multiples/${activeReportId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error("Error al procesar la descarga de múltiples archivos");
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+
+        // Extraer nombre del archivo del header si es posible, si no default
+        let filename = `Seleccion_Evidencias.zip`;
+        const disposition = res.headers.get('Content-Disposition');
+        if (disposition && disposition.indexOf('filename=') !== -1) {
+            filename = disposition.split('filename=')[1].replace(/["']/g, '');
+        }
+
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+    } catch (err) {
+        console.error(err);
+        await window.sysAlert("Error al descargar los archivos seleccionados");
+    } finally {
+        if (btn) btn.innerHTML = prevHtml;
+        if (window.feather) feather.replace();
+    }
+
+    window.evidenciasSeleccionadas = [];
+    switchTab(currentTab);
+};
+
 window.handleGenerar = async (tipo) => {
     if (!activeReportId) return;
     const btn = document.querySelector(`button[onclick="handleGenerar('${tipo}')"]`);
@@ -493,8 +765,8 @@ window.handleGenerar = async (tipo) => {
     try {
         const res = await projectsService.generar(tipo, activeReportId);
         if (res.success) switchTab(tipo === 'word' ? 'word' : 'fotos');
-        else alert("Error: " + (res.error || 'Desconocido'));
-    } catch (e) { alert("Error de conexión"); }
+        else await window.sysAlert("Error: " + (res.error || 'Desconocido'));
+    } catch (e) { await window.sysAlert("Error de conexión"); }
     finally { if (btn) { btn.disabled = false; btn.innerHTML = originalText; } }
 };
 
@@ -506,14 +778,15 @@ window.handleConvertirPdf = async () => {
     try {
         const res = await projectsService.convertirPdf(activeReportId);
         if (res.success) switchTab('pdf');
-        else alert("Error: " + (res.error || 'Desconocido'));
-    } catch (e) { alert("Error de conexión"); }
+        else await window.sysAlert("Error: " + (res.error || 'Desconocido'));
+    } catch (e) { await window.sysAlert("Error de conexión"); }
     finally { if (btn) { btn.disabled = false; btn.innerHTML = originalText; } }
 };
 
 window.crearCarpeta = async () => {
-    const nombre = prompt("Nombre de la nueva carpeta:");
+    const nombre = await window.sysPrompt("Nombre de la nueva carpeta:");
     if (!nombre) return;
+    if (nombre.includes("/") || nombre.includes("\\")) return await window.sysAlert("El nombre no puede contener barras.");
     const cleanName = nombre.replace(/[^a-zA-Z0-9_\-\s]/g, '');
     try {
         const res = await fetch(`${API_URL}/informes/mkdir/${activeReportId}`, {
@@ -523,7 +796,7 @@ window.crearCarpeta = async () => {
         });
         const data = await res.json();
         if (data.success) switchTab('fotos');
-        else alert("Error al crear carpeta");
+        else await window.sysAlert("Error al crear carpeta");
     } catch (e) { console.error(e); }
 };
 
@@ -552,6 +825,12 @@ function renderTabActions(tab) {
             html = `
                 <button id="btn-delete-evidencias" onclick="window.borrarEvidenciasSeleccionadas()" class="hidden items-center justify-center px-2 sm:px-3 py-1.5 bg-red-600 border border-red-600 rounded text-xs font-bold text-white hover:bg-red-700 shadow-sm transition mr-1 sm:mr-3">
                     <i data-feather="trash-2" width="14" class="sm:mr-1"></i> <span class="hidden sm:inline">Eliminar (${window.evidenciasSeleccionadas.length})</span>
+                </button>
+                <button id="btn-download-evidencias" onclick="window.descargarEvidenciasSeleccionadas()" class="hidden items-center justify-center px-2 sm:px-3 py-1.5 bg-emerald-600 border border-emerald-600 rounded text-xs font-bold text-white hover:bg-emerald-700 shadow-sm transition mr-1 sm:mr-3">
+                    <i data-feather="download" width="14" class="sm:mr-1"></i> <span class="hidden sm:inline">Descargar (${window.evidenciasSeleccionadas.length})</span>
+                </button>
+                <button id="btn-share-evidencias" onclick="window.compartirEvidenciasSeleccionadas()" class="hidden items-center justify-center px-2 sm:px-3 py-1.5 bg-indigo-600 border border-indigo-600 rounded text-xs font-bold text-white hover:bg-indigo-700 shadow-sm transition flex-1 sm:flex-none mr-0 sm:mr-3">
+                    <i data-feather="share-2" width="14" class="sm:mr-1"></i> <span class="hidden sm:inline">Compartir (${window.evidenciasSeleccionadas.length})</span>
                 </button>
                 <button onclick="crearCarpeta()" class="flex items-center justify-center px-2 sm:px-3 py-1.5 bg-white border border-gray-300 rounded text-xs font-bold text-gray-700 hover:bg-gray-50 shadow-sm transition flex-1 sm:flex-none">
                     <i data-feather="folder-plus" width="14" class="sm:mr-1"></i> <span class="hidden sm:inline">Crear Carpeta</span>

@@ -106,6 +106,12 @@ router.get('/explorar/:id', (req, res) => {
                 let results = [];
                 const files = fs.readdirSync(dirPath);
 
+                let metadata = {};
+                const metaPath = path.join(dirPath, 'metadata.json');
+                if (fs.existsSync(metaPath)) {
+                    try { metadata = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch (e) { }
+                }
+
                 for (const file of files) {
                     const fullPath = path.join(dirPath, file);
                     const relPath = path.join(relativeBase, file).replace(/\\/g, '/');
@@ -115,7 +121,7 @@ router.get('/explorar/:id', (req, res) => {
                         const isDir = stats.isDirectory();
 
                         // Ignorar archivos de sistema
-                        if (file === 'GENERAL.txt' || file === 'temp_render.docx' || file.startsWith('.')) continue;
+                        if (file === 'GENERAL.txt' || file === 'temp_render.docx' || file.startsWith('.') || file === 'metadata.json') continue;
 
                         if (isDir) {
                             if (!isRecursive) {
@@ -129,7 +135,12 @@ router.get('/explorar/:id', (req, res) => {
                             if (filter === 'word' && !file.endsWith('.docx')) continue;
                             if (filter === 'pdf' && !file.endsWith('.pdf')) continue;
 
-                            results.push({ name: file, type: 'file', path: relPath });
+                            let comentario = '';
+                            if (metadata[file] && metadata[file].comment) {
+                                comentario = metadata[file].comment;
+                            }
+
+                            results.push({ name: file, type: 'file', path: relPath, comentario });
                         }
                     } catch (e) { /* Ignorar archivo ilegible */ }
                 }
@@ -244,6 +255,30 @@ router.post('/subir', upload.array('files'), async (req, res) => {
 
                     if (!fs.existsSync(finalDir)) fs.mkdirSync(finalDir, { recursive: true });
                     fs.renameSync(file.path, finalPath);
+
+                    // Manejo de metadata
+                    if (req.body.metadata) {
+                        try {
+                            const metaPath = path.join(finalDir, 'metadata.json');
+                            let metadataObj = {};
+                            if (fs.existsSync(metaPath)) {
+                                try { metadataObj = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch (e) { }
+                            }
+
+                            // Extrae el JSON que envia el frontend
+                            // Handle both string and array for cases with multiple files or formData array
+                            let metaPayload = null;
+                            if (Array.isArray(req.body.metadata)) {
+                                metaPayload = JSON.parse(req.body.metadata[i] || '{}');
+                            } else {
+                                metaPayload = JSON.parse(req.body.metadata);
+                            }
+
+                            metadataObj[fileName] = metaPayload;
+                            fs.writeFileSync(metaPath, JSON.stringify(metadataObj, null, 2), 'utf8');
+                        } catch (err) { console.error("Error al procesar metadata.json:", err); }
+                    }
+
                     filesProcessed++;
                 }
             }
@@ -415,9 +450,38 @@ router.post('/rename/:id', (req, res) => {
     db.get("SELECT ruta_carpeta FROM informes WHERE id = ?", [id], (err, row) => {
         if (!row) return res.status(404).json({ error: "No encontrado" });
         const rootDir = path.join(UPLOADS_ROOT, row.ruta_carpeta);
-        const oldPathFull = path.join(rootDir, currentPath || '', oldName);
-        const newPathFull = path.join(rootDir, currentPath || '', newName);
-        try { fs.renameSync(oldPathFull, newPathFull); res.json({ success: true }); }
+        const folderPath = path.join(rootDir, currentPath || '');
+        const oldPathFull = path.join(folderPath, oldName);
+        const newPathFull = path.join(folderPath, newName);
+
+        try {
+            const metaPath = path.join(folderPath, 'metadata.json');
+
+            if (req.body.editCommentOnly) {
+                let metadata = {};
+                if (fs.existsSync(metaPath)) {
+                    try { metadata = JSON.parse(fs.readFileSync(metaPath, 'utf8')); } catch (e) { }
+                }
+                if (!metadata[oldName]) metadata[oldName] = {};
+                metadata[oldName].comment = newName;
+                fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2), 'utf8');
+                return res.json({ success: true });
+            }
+
+            fs.renameSync(oldPathFull, newPathFull);
+
+            // Rename metadata key if exists
+            if (fs.existsSync(metaPath)) {
+                let metadata = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+                if (metadata[oldName]) {
+                    metadata[newName] = metadata[oldName];
+                    delete metadata[oldName];
+                    fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2), 'utf8');
+                }
+            }
+
+            res.json({ success: true });
+        }
         catch (e) { res.status(500).json({ error: e.message }); }
     });
 });
@@ -427,13 +491,27 @@ router.post('/delete-item/:id', (req, res) => {
     const { currentPath, itemName } = req.body;
     db.get("SELECT ruta_carpeta FROM informes WHERE id = ?", [id], (err, row) => {
         if (!row) return res.status(404).json({ error: "No encontrado" });
-        const targetPath = path.join(UPLOADS_ROOT, row.ruta_carpeta, currentPath || '', itemName);
+        const folderDir = path.join(UPLOADS_ROOT, row.ruta_carpeta, currentPath || '');
+        const targetPath = path.join(folderDir, itemName);
+
         try {
             const stats = fs.statSync(targetPath);
             if (stats.isDirectory()) fs.rmSync(targetPath, { recursive: true, force: true });
-            else fs.unlinkSync(targetPath);
+            else {
+                fs.unlinkSync(targetPath);
+
+                // Remove from metadata if it's a file
+                const metaPath = path.join(folderDir, 'metadata.json');
+                if (fs.existsSync(metaPath)) {
+                    let metadata = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+                    if (metadata[itemName]) {
+                        delete metadata[itemName];
+                        fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2), 'utf8');
+                    }
+                }
+            }
             res.json({ success: true });
-        } catch (e) { res.status(500).json({ error: "Error" }); }
+        } catch (e) { res.status(500).json({ error: e.message }); }
     });
 });
 
@@ -533,6 +611,47 @@ router.get('/descargar-proyecto/:id', (req, res) => {
             // Finalizar el empaquetado y enviar al usuario
             archive.finalize();
         });
+    });
+});
+
+
+// Desargar multiples archivos como ZIP
+router.post('/descargar-multiples/:id', (req, res) => {
+    const projectId = req.params.id;
+    const { currentPath, files } = req.body;
+
+    if (!files || !Array.isArray(files) || files.length === 0) {
+        return res.status(400).json({ error: "No se enviaron archivos para descargar" });
+    }
+
+    db.get("SELECT ruta_carpeta, codigo_proyecto FROM informes WHERE id = ?", [projectId], (err, row) => {
+        if (err || !row) return res.status(404).json({ error: "Proyecto no encontrado" });
+
+        const rootDir = path.join(UPLOADS_ROOT, row.ruta_carpeta);
+        const targetDir = currentPath === 'Evidencias' ? path.join(rootDir, 'Evidencias') : path.join(rootDir, currentPath);
+
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="${row.codigo_proyecto}_Seleccion_${Date.now()}.zip"`);
+
+        const archive = archiver('zip', { zlib: { level: 9 } });
+
+        archive.on('error', (err) => {
+            console.error("Error zipping multiple files:", err);
+            if (!res.headersSent) {
+                res.status(500).json({ error: "Error creando ZIP" });
+            }
+        });
+
+        archive.pipe(res);
+
+        files.forEach(file => {
+            const filePath = path.join(targetDir, file);
+            if (fs.existsSync(filePath)) {
+                archive.file(filePath, { name: file });
+            }
+        });
+
+        archive.finalize();
     });
 });
 

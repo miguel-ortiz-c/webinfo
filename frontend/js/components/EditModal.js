@@ -11,7 +11,7 @@ export function renderEditModal() {
 
     const div = document.createElement('div');
     div.id = 'editDataModalContainer';
-    
+
     // --- AQUÍ ESTÁ LA CORRECCIÓN ---
     // Se quitaron las clases "sticky top-0 bg-white z-10" del div de la cabecera
     div.innerHTML = `
@@ -129,15 +129,15 @@ export function renderEditModal() {
             </form>
         </div>
     </div>`;
-    
+
     container.appendChild(div);
     document.getElementById('editForm').addEventListener('submit', handleSaveEdit);
-    if(window.feather) feather.replace();
+    if (window.feather) feather.replace();
 }
 
 window.abrirEditarProyecto = async () => {
-    currentEditId = window.currentViewerId; 
-    
+    currentEditId = window.currentViewerId;
+
     try {
         const res = await fetch(`${API_URL}/informes/archivos/${currentEditId}`);
         const data = await res.json();
@@ -146,15 +146,15 @@ window.abrirEditarProyecto = async () => {
         document.getElementById('editEmpresa').value = info.empresa || '';
         document.getElementById('editCodigoCliente').value = info.codigo_cliente || '';
         // CARGAR DISTRITO Y DIRECCION
-        document.getElementById('editDistrito').value = info.distrito || ''; 
-        document.getElementById('editDireccion').value = info.direccion || ''; 
-        
+        document.getElementById('editDistrito').value = info.distrito || '';
+        document.getElementById('editDireccion').value = info.direccion || '';
+
         document.getElementById('editEncargado').value = info.encargado || '';
         document.getElementById('editTecnico').value = info.tecnico || '';
         document.getElementById('editAsunto').value = info.asunto || '';
         document.getElementById('editFechaInicio').value = info.fecha_inicio || '';
         document.getElementById('editFechaFin').value = info.fecha_fin || '';
-        
+
         document.getElementById('editDesc').value = info.descripcion || '';
         document.getElementById('editAct').value = info.actividades || '';
         document.getElementById('editDiag').value = info.diagnostico || '';
@@ -162,14 +162,14 @@ window.abrirEditarProyecto = async () => {
         document.getElementById('editComentariosFotos').value = info.comentarios_fotos || '';
 
         document.getElementById('editDataModal').classList.remove('hidden');
-    } catch(e) {
-        alert("Error al cargar datos para editar.");
+    } catch (e) {
+        await window.sysAlert("Error al cargar datos para editar.");
     }
 };
 
 async function handleSaveEdit(e) {
     e.preventDefault();
-    if(!currentEditId) return;
+    if (!currentEditId) return;
 
     const body = {
         empresa: document.getElementById('editEmpresa').value,
@@ -177,7 +177,7 @@ async function handleSaveEdit(e) {
         // GUARDAR DISTRITO Y DIRECCION
         distrito: document.getElementById('editDistrito').value,
         direccion: document.getElementById('editDireccion').value,
-        
+
         encargado: document.getElementById('editEncargado').value,
         tecnico: document.getElementById('editTecnico').value,
         asunto: document.getElementById('editAsunto').value,
@@ -193,10 +193,10 @@ async function handleSaveEdit(e) {
     try {
         await fetch(`${API_URL}/informes/editar/${currentEditId}`, {
             method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        
+
         document.getElementById('editDataModal').classList.add('hidden');
         openViewer(currentEditId);
 
@@ -204,9 +204,9 @@ async function handleSaveEdit(e) {
         const term = searchInput ? searchInput.value : '';
         const updatedProjects = await projectsService.getAll(term);
         renderProjectList(updatedProjects);
-        
-    } catch(err) {
+
+    } catch (err) {
         console.error(err);
-        alert("Error al guardar cambios");
+        await window.sysAlert("Error al guardar cambios");
     }
 }

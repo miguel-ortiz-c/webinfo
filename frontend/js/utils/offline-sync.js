@@ -228,7 +228,8 @@ export async function sincronizarPendientes() {
     let sincronizados = 0;
     const proyectosAfectados = new Set();
 
-    const promesas = pendientes.map(async (item) => {
+    const promesas = []; // Cambiamos para procesar en serie en lugar de paralelo
+    for (const item of pendientes) {
         try {
             console.log(`Uploading (${item.tipo}): ${item.nombreOriginal}`);
 
@@ -241,10 +242,7 @@ export async function sincronizarPendientes() {
                 fd.append('files', item.archivo, item.nombreOriginal);
 
                 // IMPORTANTE: El backend de /informes/subir exige 'projectFolder' y 'subPath' y 'filePaths'
-                // Si la función uploadOrQueue no guardó esto, el servidor rechazará la petición.
-                // Intentamos deducirlos. Si falla aquí, ese es el problema.
                 try {
-                    // Necesitamos acceder al registro del proyecto en la base de datos local para saber la ruta
                     const txProj = db.transaction('proyectosDescargados', 'readonly');
                     const storeProj = txProj.objectStore('proyectosDescargados');
                     const proyectoData = await new Promise((res) => {
@@ -256,9 +254,7 @@ export async function sincronizarPendientes() {
                     if (proyectoData && proyectoData.info) {
                         fd.append('projectFolder', proyectoData.info.ruta_carpeta);
 
-                        // Extraemos el subPath del tipo ('evidencias-SubCarpeta' -> 'SubCarpeta')
                         const partesTipo = item.tipo.split('-');
-                        // Si el split resulta en ['evidencias', ''], el subPath es ''
                         const subPath = partesTipo.slice(1).join('-') || '';
 
                         fd.append('subPath', subPath);
@@ -282,7 +278,6 @@ export async function sincronizarPendientes() {
             });
 
             if (res.ok) {
-                // Borramos de la DB INMEDIATAMENTE después de subir exitosamente
                 await new Promise((resolveDelete, rejectDelete) => {
                     const txDel = db.transaction('syncQueue', 'readwrite');
                     txDel.objectStore('syncQueue').delete(item.id);
@@ -296,18 +291,15 @@ export async function sincronizarPendientes() {
                 proyectosAfectados.add(item.proyectoId);
                 console.log(`Success: ${item.nombreOriginal}`);
             } else {
-                // Si el servidor responde con error (ej. 500, 400), lo leemos para saber por qué
                 const textError = await res.text();
                 console.error(`❌ El servidor rechazó ${item.nombreOriginal}. Status: ${res.status}. Respuesta:`, textError);
-                // NOTA: NO borramos el ítem de la cola aquí, para que reintente en el próximo latido.
             }
         } catch (e) {
             console.error(`Critical failure uploading ${item.nombreOriginal}:`, e);
         }
-    });
+    }
 
-    // Esperamos a que todas terminen (exitosas o fallidas)
-    await Promise.all(promesas);
+
 
     // Si subimos al menos 1, emitimos el grito para refrescar la pantalla
     if (sincronizados > 0) {

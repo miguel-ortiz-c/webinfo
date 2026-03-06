@@ -11,7 +11,7 @@
   "author": "Miguel",
   "license": "ISC",
   "dependencies": {
-    "archiver": "^5.3.0",
+    "archiver": "^5.3.2",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^10.0.0",

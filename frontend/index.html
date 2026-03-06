@@ -1,17 +1,25 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Everytel</title>
-    
+
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1e40af">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .custom-swal-container {
+            z-index: 100000 !important;
+        }
+    </style>
 </head>
+
 <body class="bg-slate-900 flex items-center justify-center h-screen font-sans">
 
     <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-sm border-t-4 border-blue-600">
@@ -23,21 +31,28 @@
         <form id="loginForm" class="space-y-4">
             <div>
                 <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Usuario</label>
-                <input type="text" id="username" class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition" placeholder="admin" required>
-            </div>
-            
-            <div>
-                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Contraseña</label>
-                <input type="password" id="password" class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition" placeholder="••••••••" required>
+                <input type="text" id="username"
+                    class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+                    placeholder="admin" required>
             </div>
 
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition transform active:scale-95">
+            <div>
+                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Contraseña</label>
+                <input type="password" id="password"
+                    class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
+                    placeholder="••••••••" required>
+            </div>
+
+            <button type="submit"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition transform active:scale-95">
                 INGRESAR
             </button>
         </form>
-        
-        <p id="errorMsg" class="hidden mt-4 text-center text-sm font-bold text-red-600 bg-red-50 p-2 rounded border border-red-200"></p>
-        
+
+        <p id="errorMsg"
+            class="hidden mt-4 text-center text-sm font-bold text-red-600 bg-red-50 p-2 rounded border border-red-200">
+        </p>
+
         <div class="mt-6 text-center text-xs text-gray-400">
             &copy; 2026 Everytel S.A.C.
         </div>
@@ -55,8 +70,8 @@
 
         // Login Logic
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault(); 
-            
+            e.preventDefault();
+
             const userField = document.getElementById('username');
             const passField = document.getElementById('password');
             const btn = e.target.querySelector('button');
@@ -71,7 +86,7 @@
 
             try {
                 const url = window.location.origin + '/api/auth/login';
-                
+
                 const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -82,9 +97,9 @@
 
                 if (res.ok) {
                     localStorage.setItem('everytel_role', data.role);
-                    localStorage.setItem('everytel_user', data.user); 
+                    localStorage.setItem('everytel_user', data.user);
                     localStorage.setItem('everytel_empresa', data.empresa || '');
-                    
+
                     window.location.href = 'dashboard.html';
                 } else {
                     throw new Error(data.error || 'Error de acceso');
@@ -99,4 +114,5 @@
         });
     </script>
 </body>
+
 </html>

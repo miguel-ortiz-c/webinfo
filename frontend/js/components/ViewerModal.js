@@ -23,7 +23,7 @@ export function renderViewerModal() {
 export async function openViewer(id) {
     renderViewerModal();
     const container = document.getElementById('viewer-modal-container');
-    if (!container) return alert("Error de interfaz.");
+    if (!container) return await window.sysAlert("Error de interfaz.");
 
     window.currentViewerId = id;
 
@@ -86,7 +86,7 @@ export async function openViewer(id) {
 
     } catch (err) {
         console.error(err);
-        alert(err.message);
+        await window.sysAlert(err.message);
         container.innerHTML = ''; // Limpiar loader
         document.body.style.overflow = '';
     }

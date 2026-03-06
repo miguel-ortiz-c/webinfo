@@ -14,6 +14,19 @@ import { projectsService } from './services/projects.service.js';
 import { renderProjectList } from './components/ProjectList.js';
 import { sincronizarPendientes } from './utils/offline-sync.js';
 
+// --- GLOBAL MODAL HELPERS ---
+window.sysAlert = async (text, icon = 'error') => {
+    return Swal.fire({ text, icon, customClass: { container: 'custom-swal-container' }, confirmButtonColor: '#2563eb' });
+};
+window.sysConfirm = async (text) => {
+    const res = await Swal.fire({ text, icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#6b7280', confirmButtonText: 'Sí', cancelButtonText: 'No', customClass: { container: 'custom-swal-container' } });
+    return res.isConfirmed;
+};
+window.sysPrompt = async (title, inputValue = '') => {
+    const res = await Swal.fire({ title, input: 'text', inputValue, showCancelButton: true, confirmButtonColor: '#2563eb', cancelButtonColor: '#6b7280', confirmButtonText: 'Guardar', cancelButtonText: 'Cancelar', customClass: { container: 'custom-swal-container' } });
+    return res.isConfirmed ? res.value : null;
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Starting Everytel v8.5...');
 

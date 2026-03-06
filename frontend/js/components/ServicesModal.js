@@ -51,31 +51,31 @@ export function renderServicesModal() {
     window.crearServicio = async () => {
         const codigo = document.getElementById('newServiceCode').value.toUpperCase();
         const nombre = document.getElementById('newServiceName').value;
-        if (!codigo || !nombre) return alert("Completa ambos campos");
+        if (!codigo || !nombre) return await window.sysAlert("Completa ambos campos");
 
         const res = await fetch(`${API_URL}/informes/servicios`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ codigo, nombre })
         });
-        
+
         if (res.ok) {
             document.getElementById('newServiceCode').value = '';
             document.getElementById('newServiceName').value = '';
             document.getElementById('newServiceCode').focus();
             await cargarListaServicios();
         } else {
-            alert("Error al crear");
+            await window.sysAlert("Error al crear");
         }
     };
 
     window.borrarServicio = async (id) => {
-        if(!confirm("¿Eliminar servicio?")) return;
+        if (!(await window.sysConfirm("¿Eliminar servicio?"))) return;
         await fetch(`${API_URL}/informes/servicios/${id}`, { method: 'DELETE' });
         await cargarListaServicios();
     };
-    
-    if(window.feather) feather.replace();
+
+    if (window.feather) feather.replace();
 }
 
 async function cargarListaServicios() {
@@ -83,7 +83,7 @@ async function cargarListaServicios() {
         const res = await fetch(`${API_URL}/informes/servicios`);
         const servicios = await res.json();
         const lista = document.getElementById('listaServiciosAdmin');
-        
+
         if (servicios.length === 0) {
             lista.innerHTML = '<p class="text-center text-gray-400 text-xs mt-4">No hay servicios.</p>';
             return;
@@ -98,7 +98,7 @@ async function cargarListaServicios() {
                 <button onclick="borrarServicio(${s.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i data-feather="trash-2" width="14"></i></button>
             </div>
         `).join('');
-        
-        if(window.feather) feather.replace();
-    } catch(e) { console.error(e); }
+
+        if (window.feather) feather.replace();
+    } catch (e) { console.error(e); }
 }

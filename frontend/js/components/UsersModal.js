@@ -62,7 +62,7 @@ export function renderUsersModal() {
         if (!m.classList.contains('hidden')) {
             cancelarEdicion();
             loadUsersList();
-            if(window.actualizarDatalistsEmpresas) window.actualizarDatalistsEmpresas();
+            if (window.actualizarDatalistsEmpresas) window.actualizarDatalistsEmpresas();
         }
     };
 
@@ -74,14 +74,14 @@ export function renderUsersModal() {
             input.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
             input.classList.remove('bg-indigo-50', 'border-indigo-300');
         } else if (sel.value === 'cliente') {
-            if(!input.value || input.value === 'TODOS') input.value = '';
+            if (!input.value || input.value === 'TODOS') input.value = '';
             input.disabled = false;
             input.placeholder = "Busca la empresa...";
             input.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
             input.classList.add('bg-indigo-50', 'border-indigo-300');
             input.focus();
         } else {
-            if(!input.value) input.value = 'TODOS';
+            if (!input.value) input.value = 'TODOS';
             input.disabled = false;
             input.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
             input.classList.add('bg-indigo-50', 'border-indigo-300');
@@ -99,34 +99,34 @@ export function renderUsersModal() {
         const role = document.getElementById('newUserRole').value;
         let empresa = document.getElementById('newUserEmpresa').value.trim();
 
-        if(!username || !password) return alert("Usuario y contraseña requeridos.");
-        if(!empresa) empresa = "TODOS";
+        if (!username || !password) return await window.sysAlert("Usuario y contraseña requeridos.");
+        if (!empresa) empresa = "TODOS";
 
         try {
             const res = await usersService.create({ username, password, role, empresa });
-            if(res.success) {
+            if (res.success) {
                 cancelarEdicion();
                 loadUsersList();
             } else {
-                alert(res.error || "Error al crear");
+                await window.sysAlert(res.error || "Error al crear");
             }
-        } catch(e) { alert("Error de conexión"); }
+        } catch (e) { await window.sysAlert("Error de conexión"); }
     }
 
     async function guardarEdicion() {
         const role = document.getElementById('newUserRole').value;
         let empresa = document.getElementById('newUserEmpresa').value.trim();
-        if(!empresa) empresa = "TODOS";
+        if (!empresa) empresa = "TODOS";
 
         try {
             const res = await usersService.updateData(editingUserId, role, empresa);
-            if(res.success) {
+            if (res.success) {
                 cancelarEdicion();
                 loadUsersList();
             } else {
-                alert("Error al actualizar: " + (res.error || "Desconocido"));
+                await window.sysAlert("Error al actualizar: " + (res.error || "Desconocido"));
             }
-        } catch(e) { alert("Error de conexión al actualizar"); }
+        } catch (e) { await window.sysAlert("Error de conexión al actualizar"); }
     }
 
     window.prepararEdicion = (id, username, role, empresa) => {
@@ -138,7 +138,7 @@ export function renderUsersModal() {
         document.getElementById('formTitle').innerText = `EDITANDO: ${username}`;
         document.getElementById('formTitle').classList.add('text-yellow-700');
         document.getElementById('btnCancelEdit').classList.remove('hidden');
-        
+
         const btn = document.getElementById('btnSubmitUser');
         btn.innerHTML = `<i data-feather="save" width="16" class="mr-2"></i> GUARDAR CAMBIOS`;
         btn.classList.remove('bg-gray-800', 'hover:bg-gray-900');
@@ -149,17 +149,17 @@ export function renderUsersModal() {
         inputUser.disabled = true;
 
         const inputPass = document.getElementById('newUserPass');
-        inputPass.classList.add('hidden'); 
+        inputPass.classList.add('hidden');
         inputPass.value = '';
 
         const selectRole = document.getElementById('newUserRole');
         selectRole.value = role;
-        
+
         const inputEmpresa = document.getElementById('newUserEmpresa');
         inputEmpresa.value = empresa;
 
         toggleEmpresaField(selectRole);
-        if(window.feather) feather.replace();
+        if (window.feather) feather.replace();
     };
 
     window.cancelarEdicion = () => {
@@ -187,37 +187,37 @@ export function renderUsersModal() {
         inputEmpresa.disabled = false;
         inputEmpresa.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-100');
 
-        if(window.feather) feather.replace();
+        if (window.feather) feather.replace();
     };
 
     window.handleDeleteUser = async (id) => {
-        if (confirm("¿Eliminar usuario?")) {
+        if (await window.sysConfirm("¿Eliminar usuario?")) {
             await usersService.delete(id);
-            if(editingUserId === id) cancelarEdicion();
+            if (editingUserId === id) cancelarEdicion();
             loadUsersList();
         }
     };
 
     window.handleChangePass = async (id, username) => {
-        const newPass = prompt(`Nueva contraseña para ${username}:`);
+        const newPass = await window.sysPrompt(`Nueva contraseña para ${username}:`);
         if (newPass) {
             try {
                 await usersService.updatePassword(id, newPass);
-                alert("Contraseña actualizada.");
-            } catch(e) { alert("Error"); }
+                await window.sysAlert("Contraseña actualizada.", 'success');
+            } catch (e) { await window.sysAlert("Error"); }
         }
     };
 
-    if(window.feather) feather.replace();
+    if (window.feather) feather.replace();
 }
 
 async function loadUsersList() {
     try {
         const users = await usersService.getAll();
         const list = document.getElementById('listaUsuarios');
-        
+
         const dl = document.getElementById('dl_empresas_users');
-        if(dl && !dl.innerHTML.includes('value="TODOS"')) {
+        if (dl && !dl.innerHTML.includes('value="TODOS"')) {
             dl.innerHTML = `<option value="TODOS">ACCESO TOTAL</option>` + dl.innerHTML;
         }
 
@@ -229,25 +229,25 @@ async function loadUsersList() {
         list.innerHTML = users.map(u => {
             let roleBadge = 'bg-gray-100 text-gray-600 border-gray-200';
             let iconRole = 'user';
-            
+
             // Texto para mostrar en la lista
             let roleLabel = u.role;
 
-            if(u.role === 'admin') {
+            if (u.role === 'admin') {
                 roleBadge = 'bg-red-100 text-red-700 font-bold border-red-200';
                 iconRole = 'shield';
                 roleLabel = 'ADMIN';
-            } else if(u.role === 'cliente') {
+            } else if (u.role === 'cliente') {
                 roleBadge = 'bg-indigo-100 text-indigo-700 font-bold border-indigo-200';
                 iconRole = 'briefcase';
-                roleLabel = 'EMPRESA'; 
+                roleLabel = 'EMPRESA';
             } else {
                 roleBadge = 'bg-blue-100 text-blue-700 font-bold border-blue-200';
                 iconRole = 'tool';
                 roleLabel = 'TÉCNICO';
             }
 
-            const deleteBtn = u.id === 1 
+            const deleteBtn = u.id === 1
                 ? `<span class="text-[10px] text-gray-300 italic px-2">Master</span>`
                 : `<button onclick="handleDeleteUser(${u.id})" class="text-gray-300 hover:text-red-500 p-1.5 transition rounded-full hover:bg-red-50" title="Eliminar"><i data-feather="trash-2" width="14"></i></button>`;
 
@@ -276,7 +276,7 @@ async function loadUsersList() {
             </div>
             `;
         }).join('');
-        
-        if(window.feather) feather.replace();
-    } catch(e) { console.error(e); }
+
+        if (window.feather) feather.replace();
+    } catch (e) { console.error(e); }
 }

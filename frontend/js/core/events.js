@@ -39,6 +39,30 @@ export function initGlobalEvents() {
 
             if (secondaryClosed) return;
 
+            // Priority 2.5: Clear selections before closing viewers
+            let selectionCleared = false;
+
+            if (window.evidenciasSeleccionadas && window.evidenciasSeleccionadas.length > 0) {
+                if (typeof window.clearSeleccionEvidencias === 'function') {
+                    window.clearSeleccionEvidencias();
+                } else {
+                    window.evidenciasSeleccionadas = [];
+                }
+                selectionCleared = true;
+            }
+
+            if (window.logisticaSeleccionadas && (window.logisticaSeleccionadas.salida.length > 0 || window.logisticaSeleccionadas.entrada.length > 0)) {
+                if (typeof window.clearSeleccionLogistica === 'function') {
+                    window.clearSeleccionLogistica();
+                } else {
+                    window.logisticaSeleccionadas.salida = [];
+                    window.logisticaSeleccionadas.entrada = [];
+                }
+                selectionCleared = true;
+            }
+
+            if (selectionCleared) return;
+
             // Priority 3: Main Project Viewer
             const reporte = document.getElementById('reporteModal');
             if (reporte && !reporte.classList.contains('hidden')) {
@@ -65,6 +89,11 @@ export function initGlobalEvents() {
             return;
         }
 
+        // Priority 1.5: UploadCarousel
+        if (window.UploadCarousel && window.UploadCarousel.context.isOpen) {
+            return;
+        }
+
         // Priority 2: Secondary Modals
         const secondaryModals = ['modal-logistica', 'editDataModal', 'modalClientes', 'modalServicios', 'modalUsuarios', 'adminPanel'];
         let secondaryClosed = false;
@@ -81,6 +110,35 @@ export function initGlobalEvents() {
         });
 
         if (secondaryClosed) return;
+
+        // Priority 2.5: Clear selections before closing viewers
+        let selectionClearedPopstate = false;
+
+        if (window.evidenciasSeleccionadas && window.evidenciasSeleccionadas.length > 0) {
+            if (typeof window.clearSeleccionEvidencias === 'function') {
+                window.clearSeleccionEvidencias();
+            } else {
+                window.evidenciasSeleccionadas = [];
+            }
+            selectionClearedPopstate = true;
+        }
+
+        if (window.logisticaSeleccionadas && (window.logisticaSeleccionadas.salida.length > 0 || window.logisticaSeleccionadas.entrada.length > 0)) {
+            if (typeof window.clearSeleccionLogistica === 'function') {
+                window.clearSeleccionLogistica();
+            } else {
+                window.logisticaSeleccionadas.salida = [];
+                window.logisticaSeleccionadas.entrada = [];
+            }
+            selectionClearedPopstate = true;
+        }
+
+        if (selectionClearedPopstate) {
+            if (window.currentViewerId) {
+                history.pushState({ modal: 'viewer' }, '', `#proyecto-${window.currentViewerId}`);
+            }
+            return;
+        }
 
         // Priority 3: Project Viewer
         const reporte = document.getElementById('reporteModal');

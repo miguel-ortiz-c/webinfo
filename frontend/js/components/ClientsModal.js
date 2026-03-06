@@ -58,31 +58,31 @@ export function renderClientsModal() {
     window.crearCliente = async () => {
         const nombre = document.getElementById('newClientName').value;
         const ruc = document.getElementById('newClientRuc').value;
-        if (!nombre) return alert("El nombre es obligatorio");
+        if (!nombre) return await window.sysAlert("El nombre es obligatorio");
 
         const res = await fetch(`${API_URL}/clientes`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nombre, ruc })
         });
         const data = await res.json();
-        
+
         if (data.success) {
             document.getElementById('newClientName').value = '';
             document.getElementById('newClientRuc').value = '';
             document.getElementById('newClientName').focus(); // Re-enfocar
             await cargarListaClientes();
-            if(window.actualizarDatalistsEmpresas) window.actualizarDatalistsEmpresas();
+            if (window.actualizarDatalistsEmpresas) window.actualizarDatalistsEmpresas();
         } else {
-            alert(data.error);
+            await window.sysAlert(data.error);
         }
     };
 
     window.borrarCliente = async (id) => {
-        if(!confirm("¿Eliminar empresa del directorio?")) return;
+        if (!(await window.sysConfirm("¿Eliminar empresa del directorio?"))) return;
         await fetch(`${API_URL}/clientes/${id}`, { method: 'DELETE' });
         await cargarListaClientes();
-        if(window.actualizarDatalistsEmpresas) window.actualizarDatalistsEmpresas();
+        if (window.actualizarDatalistsEmpresas) window.actualizarDatalistsEmpresas();
     };
 
     window.filtrarListaClientes = () => {
@@ -93,8 +93,8 @@ export function renderClientsModal() {
             item.style.display = txt.includes(term) ? 'flex' : 'none';
         });
     };
-    
-    if(window.feather) feather.replace();
+
+    if (window.feather) feather.replace();
 }
 
 async function cargarListaClientes() {
@@ -102,7 +102,7 @@ async function cargarListaClientes() {
         const res = await fetch(`${API_URL}/clientes`);
         const clientes = await res.json();
         const lista = document.getElementById('listaClientesAdmin');
-        
+
         window.listaEmpresasGlobal = clientes;
 
         if (clientes.length === 0) {
@@ -119,7 +119,7 @@ async function cargarListaClientes() {
                 <button onclick="borrarCliente(${c.id})" class="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><i data-feather="trash-2" width="14"></i></button>
             </div>
         `).join('');
-        
-        if(window.feather) feather.replace();
-    } catch(e) { console.error(e); }
+
+        if (window.feather) feather.replace();
+    } catch (e) { console.error(e); }
 }
