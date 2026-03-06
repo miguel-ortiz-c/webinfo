@@ -24,8 +24,8 @@ export function renderUsersModal() {
                 </div>
                 
                 <div class="grid grid-cols-2 gap-3 mb-3">
-                    <input id="newUseName" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-gray-500 outline-none transition disabled:bg-gray-200" placeholder="Usuario">
-                    <input id="newUserPass" autocomplete="new-password" type="password" class="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-gray-500 outline-none transition" placeholder="Contraseña">
+                    <input id="newUseName" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" class="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-gray-500 outline-none transition disabled:bg-gray-200" placeholder="Usuario">
+                    <input id="newUserPass" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" type="text" style="-webkit-text-security: disc;" class="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-gray-500 outline-none transition" placeholder="Contraseña">
                 </div>
 
                 <div class="flex gap-3 items-center">

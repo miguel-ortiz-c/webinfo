@@ -28,17 +28,20 @@
             <p class="text-sm text-gray-500 font-medium">Gestión de Informes v8.5</p>
         </div>
 
-        <div id="loginForm" class="space-y-4" onkeypress="if(event.key === 'Enter') document.getElementById('btnLogin').click()">
+        <div id="loginForm" class="space-y-4"
+            onkeypress="if(event.key === 'Enter') document.getElementById('btnLogin').click()">
             <div>
                 <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Usuario</label>
-                <input type="text" id="username" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                <input type="text" id="username" autocomplete="off" autocorrect="off" autocapitalize="off"
+                    spellcheck="false" data-lpignore="true" data-1p-ignore="true"
                     class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
                     placeholder="admin">
             </div>
 
             <div>
                 <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Contraseña</label>
-                <input type="password" id="password" autocomplete="new-password"
+                <input type="text" id="password" style="-webkit-text-security: disc;" autocomplete="off"
+                    autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true"
                     class="w-full border border-gray-300 p-3 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
                     placeholder="••••••••">
             </div>
