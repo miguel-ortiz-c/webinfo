@@ -80,12 +80,14 @@ export function initGlobalEvents() {
 
         // Priority 1: Lightbox
         const lightbox = document.getElementById('previewModal');
-        if (lightbox) {
+        if (lightbox && !lightbox.classList.contains('hidden')) {
             closeLightbox();
-            // Restore project hash to stay in viewer
-            if (window.currentViewerId) {
-                history.pushState({ modal: 'viewer' }, '', `#proyecto-${window.currentViewerId}`);
-            }
+            // Wait a tick then replace state to fix the URL without pushing a new entry
+            setTimeout(() => {
+                if (window.currentViewerId && window.location.hash !== `#proyecto-${window.currentViewerId}`) {
+                    history.replaceState({ modal: 'viewer' }, '', `#proyecto-${window.currentViewerId}`);
+                }
+            }, 50);
             return;
         }
 
@@ -134,8 +136,12 @@ export function initGlobalEvents() {
         }
 
         if (selectionClearedPopstate) {
-            if (window.currentViewerId) {
-                history.pushState({ modal: 'viewer' }, '', `#proyecto-${window.currentViewerId}`);
+            // Selections were cleared.
+            // DO NOT call history.pushState() here, as we are already responding to a back operation.
+            // Pushing a new state inside a popstate event breaks the history stack and logs the user out on the next press.
+            // However, we must ensure the URL hash matches the open viewer.
+            if (window.currentViewerId && window.location.hash !== `#proyecto-${window.currentViewerId}`) {
+                history.replaceState({ modal: 'viewer' }, '', `#proyecto-${window.currentViewerId}`);
             }
             return;
         }
